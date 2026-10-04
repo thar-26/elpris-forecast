@@ -1,0 +1,11 @@
+# data is rebuilt by the pipeline, so it is not stored in git
+data/
+__pycache__/
+*.pyc
+.pytest_cache/
+*.egg-info/
+build/
+dist/
+.env
+.venv/
+.vscode/
