@@ -6,6 +6,7 @@ the API returns, so they run fast, offline, and give the same result every time.
 
 from datetime import date, datetime, timedelta, timezone
 
+import numpy as np
 import pandas as pd
 import pytest
 
@@ -48,3 +49,22 @@ def hourly_prices():
             "eur_per_kwh": 0.0,
         }
     )
+
+
+@pytest.fixture
+def long_prices():
+    """Sixty days of hourly prices for two zones.
+
+    Each day has the same daily shape plus a random level that does not carry over
+    to the next day. So "same hour yesterday" is a poor forecast here, and a model
+    that learns the usual shape should beat it.
+    """
+    random = np.random.default_rng(42)
+    hours = pd.date_range("2026-06-01", periods=60 * 24, freq="h", tz="UTC")
+    shape = 0.5 + 0.3 * np.sin(2 * np.pi * (hours.hour - 6) / 24)
+    frames = []
+    for zone in ("SE3", "SE4"):
+        level = np.repeat(random.normal(0, 0.3, size=60), 24)
+        noise = random.normal(0, 0.02, size=len(hours))
+        frames.append(pd.DataFrame({"zone": zone, "hour_utc": hours, "sek_per_kwh": shape + level + noise}))
+    return pd.concat(frames, ignore_index=True)

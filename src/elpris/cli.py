@@ -3,6 +3,7 @@
     python -m elpris backfill --days 60    download the last 60 days for all zones
     python -m elpris fetch                 download today (or --date YYYY-MM-DD)
     python -m elpris backtest              score the baselines on everything stored
+    python -m elpris compare               test the models against the baseline, day by day
 """
 
 from __future__ import annotations
@@ -13,7 +14,7 @@ from datetime import date, timedelta
 
 import requests
 
-from . import config, evaluate, fetch, store
+from . import backtest, config, evaluate, features, fetch, store
 
 
 def fetch_and_save(connection, session, day: date, zone: str, force: bool = False) -> str:
@@ -65,6 +66,31 @@ def run_backtest(db_path) -> int:
     return 0
 
 
+def run_compare(db_path, test_days: int) -> int:
+    connection = store.connect(db_path)
+    prices = store.load_prices(connection)
+    connection.close()
+    if prices.empty:
+        print("No prices stored yet. Run: python -m elpris backfill --days 60")
+        return 1
+    try:
+        predictions = backtest.walk_forward(features.build_features(prices), test_days=test_days)
+    except ValueError as error:
+        print(error)
+        return 1
+    results = evaluate.compare_methods(predictions, reference=backtest.REFERENCE)
+    first, last = predictions["local_date"].min(), predictions["local_date"].max()
+    print(f"Walk-forward test on {test_days} days, {first} to {last}.")
+    print("Each day is forecast using only the days before it.\n")
+    print(results.astype(object).fillna("").to_string(index=False))
+    print(
+        "\ngain_pct = how much lower the error is than same_hour_yesterday."
+        "\ngain_low to gain_high = 95% range for the average daily gain in SEK per kWh."
+        "\nIf that range includes zero, the win could be luck: 'not proven'."
+    )
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="elpris", description="Swedish electricity price forecast")
     parser.add_argument("--db", default=str(config.DB_PATH), help="path to the SQLite database")
@@ -80,6 +106,9 @@ def main(argv: list[str] | None = None) -> int:
 
     commands.add_parser("backtest", help="score the baselines on stored prices")
 
+    compare = commands.add_parser("compare", help="test the models against the baseline")
+    compare.add_argument("--test-days", type=int, default=28)
+
     args = parser.parse_args(argv)
 
     if args.command == "backfill":
@@ -88,6 +117,8 @@ def main(argv: list[str] | None = None) -> int:
         return 1 if run_fetch(days, args.db, force=args.force) else 0
     if args.command == "fetch":
         return 1 if run_fetch([args.date or date.today()], args.db, force=args.force) else 0
+    if args.command == "compare":
+        return run_compare(args.db, args.test_days)
     return run_backtest(args.db)
 
 

@@ -50,3 +50,30 @@ def test_a_bad_day_is_reported_and_the_run_continues(tmp_path, monkeypatch, raw_
 def test_backtest_with_no_data_explains_what_to_do(tmp_path, capsys):
     assert cli.run_backtest(tmp_path / "empty.db") == 1
     assert "backfill" in capsys.readouterr().out
+
+
+def test_compare_runs_end_to_end_on_stored_prices(tmp_path, long_prices, capsys):
+    db_path = tmp_path / "prices.db"
+    connection = store.connect(db_path)
+    for (zone, day), hours in long_prices.assign(eur_per_kwh=0.0).groupby(
+        ["zone", long_prices["hour_utc"].dt.date]
+    ):
+        store.save_day(connection, day, hours[["zone", "hour_utc", "sek_per_kwh", "eur_per_kwh"]])
+    connection.close()
+
+    assert cli.run_compare(db_path, test_days=7) == 0
+    output = capsys.readouterr().out
+    assert "Walk-forward test on 7 days" in output
+    assert "ridge" in output and "reference" in output
+
+
+def test_compare_with_too_little_history_explains_what_to_do(tmp_path, long_prices, capsys):
+    db_path = tmp_path / "prices.db"
+    connection = store.connect(db_path)
+    short = long_prices[long_prices["hour_utc"] < "2026-06-12"].assign(eur_per_kwh=0.0)
+    for (zone, day), hours in short.groupby(["zone", short["hour_utc"].dt.date]):
+        store.save_day(connection, day, hours[["zone", "hour_utc", "sek_per_kwh", "eur_per_kwh"]])
+    connection.close()
+
+    assert cli.run_compare(db_path, test_days=28) == 1
+    assert "Download more history" in capsys.readouterr().out

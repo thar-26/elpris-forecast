@@ -4,13 +4,16 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "elpris-forecast"
-version = "0.1.0"
+version = "0.2.0"
 description = "Daily forecast of Swedish day-ahead electricity prices, scored against reality."
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
+    "numpy>=1.26",
     "pandas>=2.2",
     "requests>=2.31",
+    "scikit-learn>=1.4",
+    "tzdata",
 ]
 
 [project.optional-dependencies]
