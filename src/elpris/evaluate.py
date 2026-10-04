@@ -41,6 +41,23 @@ def backtest_baselines(prices: pd.DataFrame) -> pd.DataFrame:
     return pd.DataFrame(rows, columns=["zone", "baseline", "hours_scored", "mae_sek_per_kwh"])
 
 
+def gain_range(daily_gain, resamples: int = 5000) -> tuple[float, float]:
+    """95% range for the average daily gain, found by resampling the days."""
+    gain = np.asarray(daily_gain, dtype=float)
+    random = np.random.default_rng(0)
+    samples = random.choice(gain, size=(resamples, len(gain))).mean(axis=1)
+    low, high = np.percentile(samples, [2.5, 97.5])
+    return float(low), float(high)
+
+
+def verdict(low: float, high: float) -> str:
+    if low > 0:
+        return "beats baseline"
+    if high < 0:
+        return "worse"
+    return "not proven"
+
+
 def compare_methods(predictions: pd.DataFrame, reference: str, resamples: int = 5000) -> pd.DataFrame:
     """Compare every method with the reference method, day by day.
 
@@ -55,7 +72,6 @@ def compare_methods(predictions: pd.DataFrame, reference: str, resamples: int = 
     scored = predictions.assign(miss=(predictions["actual"] - predictions["forecast"]).abs())
     daily = scored.groupby(["zone", "method", "local_date"])["miss"].mean().unstack("method")
     overall = scored.groupby(["zone", "method"])["miss"].mean()
-    random = np.random.default_rng(0)
 
     rows = []
     for zone, zone_daily in daily.groupby(level="zone"):
@@ -75,12 +91,11 @@ def compare_methods(predictions: pd.DataFrame, reference: str, resamples: int = 
             }
             if method != reference:
                 gain = (zone_daily[reference] - zone_daily[method]).to_numpy()
-                samples = random.choice(gain, size=(resamples, len(gain))).mean(axis=1)
-                low, high = np.percentile(samples, [2.5, 97.5])
+                low, high = gain_range(gain, resamples)
                 row["days_won"] = int((gain > 0).sum())
-                row["gain_low"] = round(float(low), 4)
-                row["gain_high"] = round(float(high), 4)
-                row["verdict"] = "beats baseline" if low > 0 else ("worse" if high < 0 else "not proven")
+                row["gain_low"] = round(low, 4)
+                row["gain_high"] = round(high, 4)
+                row["verdict"] = verdict(low, high)
             rows.append(row)
 
     results = pd.DataFrame(rows)

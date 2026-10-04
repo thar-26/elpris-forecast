@@ -1,5 +1,7 @@
 # data is rebuilt by the pipeline, so it is not stored in git
 data/
+# a scratch record folder for trying commands locally
+local_record/
 __pycache__/
 *.pyc
 .pytest_cache/

@@ -77,3 +77,42 @@ def test_compare_with_too_little_history_explains_what_to_do(tmp_path, long_pric
 
     assert cli.run_compare(db_path, test_days=28) == 1
     assert "Download more history" in capsys.readouterr().out
+
+
+def _fill_database(db_path, prices):
+    connection = store.connect(db_path)
+    prices = prices.assign(eur_per_kwh=0.0)
+    for (zone, day), hours in prices.groupby(["zone", prices["hour_utc"].dt.date]):
+        store.save_day(connection, day, hours[["zone", "hour_utc", "sek_per_kwh", "eur_per_kwh"]])
+    connection.close()
+
+
+def test_forecast_then_score_from_the_command_line(tmp_path, long_prices, capsys):
+    from elpris import forecast, record
+
+    day = date(2026, 7, 20)
+    morning_db, later_db = tmp_path / "morning.db", tmp_path / "later.db"
+    record_dir = tmp_path / "record"
+    _fill_database(morning_db, long_prices[long_prices["hour_utc"] < forecast.delivery_hours(day)[0]])
+    _fill_database(later_db, long_prices)
+
+    assert cli.main(["--db", str(morning_db), "forecast", "--date", "2026-07-20", "--record-dir", str(record_dir)]) == 0
+    assert "added 48 hourly rows" in capsys.readouterr().out
+
+    # the same morning: nothing to score, and forecasting again changes nothing
+    assert cli.main(["--db", str(morning_db), "score", "--record-dir", str(record_dir)]) == 0
+    assert "Nothing new to score" in capsys.readouterr().out
+    assert cli.main(["--db", str(morning_db), "forecast", "--date", "2026-07-20", "--record-dir", str(record_dir)]) == 0
+    assert "already recorded" in capsys.readouterr().out
+
+    # later, once the real prices are in
+    assert cli.main(["--db", str(later_db), "score", "--record-dir", str(record_dir)]) == 0
+    assert "Scored 1 day(s)" in capsys.readouterr().out
+    assert len(record.read_scores(record_dir)) == 2
+    assert (record_dir / "README.md").exists()
+
+
+def test_forecast_without_history_fails_with_a_message(tmp_path, capsys):
+    code = cli.main(["--db", str(tmp_path / "empty.db"), "forecast", "--record-dir", str(tmp_path / "record")])
+    assert code == 1
+    assert "Could not forecast" in capsys.readouterr().out

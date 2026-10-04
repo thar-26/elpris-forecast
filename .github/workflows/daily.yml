@@ -1,0 +1,68 @@
+name: daily forecast
+
+# Runs every morning, before the next day's real prices are published around 13:00 Swedish time.
+# It can also be started by hand from the Actions tab.
+on:
+  schedule:
+    - cron: "17 5 * * *"   # 05:17 UTC = 07:17 Swedish summer time, 06:17 winter time
+  workflow_dispatch:
+
+permissions:
+  contents: write   # needed to commit the record back to the repository
+
+concurrency:
+  group: daily-forecast
+  cancel-in-progress: false
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install
+        run: pip install -e .
+
+      # The price database is not stored in git. It is kept between runs as a cache.
+      # If the cache is ever lost, the next step simply downloads everything again.
+      - name: Restore the price database
+        uses: actions/cache/restore@v4
+        with:
+          path: data/prices.db
+          key: prices-db-${{ github.run_id }}
+          restore-keys: prices-db-
+
+      - name: Download new prices
+        run: python -m elpris backfill --days 730
+        continue-on-error: true   # a gap on some old day must not stop today's forecast
+
+      - name: Score earlier forecasts
+        run: python -m elpris score
+
+      - name: Forecast tomorrow
+        run: python -m elpris forecast
+
+      - name: Save the price database
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: data/prices.db
+          key: prices-db-${{ github.run_id }}
+
+      - name: Commit the record
+        run: |
+          git config user.name "elpris-bot"
+          git config user.email "elpris-bot@users.noreply.github.com"
+          git add record
+          if git diff --cached --quiet; then
+            echo "Nothing new to record."
+          else
+            git commit -m "Daily record $(date -u +%F)"
+            git push
+          fi

@@ -23,16 +23,22 @@ FEATURES = [
 ]
 
 
-def build_features(prices: pd.DataFrame) -> pd.DataFrame:
+def build_features(prices: pd.DataFrame, until: pd.Timestamp | None = None) -> pd.DataFrame:
     """One row per zone and hour, with the actual price and the inputs for that hour.
 
     Input columns: zone, hour_utc, sek_per_kwh.
     Output columns: zone, hour_utc, local_date, actual, plus everything in FEATURES.
     Hours without a full week of history behind them are dropped.
+
+    `until` adds rows for future hours up to that time. Their `actual` is empty,
+    but their inputs are built by exactly the same code as the training rows.
     """
     frames = []
     for zone, group in prices.groupby("zone"):
         series = group.set_index("hour_utc")["sek_per_kwh"].sort_index().asfreq("h")
+        if until is not None and until > series.index.max():
+            series = series.reindex(pd.date_range(series.index.min(), until, freq="h"))
+            series.index.name = "hour_utc"
         known = series.shift(24)  # the newest price we are allowed to use for each hour
 
         frame = pd.DataFrame({"actual": series})
@@ -53,4 +59,7 @@ def build_features(prices: pd.DataFrame) -> pd.DataFrame:
     columns = ["zone", "hour_utc", "local_date", "actual", *FEATURES]
     if not frames:
         return pd.DataFrame(columns=columns)
-    return pd.concat(frames, ignore_index=True)[columns].dropna().reset_index(drop=True)
+    result = pd.concat(frames, ignore_index=True)[columns].dropna(subset=FEATURES)
+    if until is None:
+        result = result.dropna(subset=["actual"])
+    return result.reset_index(drop=True)

@@ -2,7 +2,7 @@
 
 A daily forecast of Swedish day-ahead electricity prices for the four price zones (SE1 to SE4), scored against what really happened.
 
-**Status: step 2 of 4 done.** The data pipeline, the baselines and the model are built and tested. On a 180-day test the model beats the baseline in all four zones. It is not deployed yet.
+**Status: step 3 of 4, in progress.** The pipeline, the baselines and the model are built and tested. On a 180-day test the model beats the baseline in all four zones. A daily automatic run is set up on GitHub, and its results are published in the [live track record](record/README.md). Cloud deployment is not done yet.
 
 ## What it does today
 
@@ -11,6 +11,7 @@ A daily forecast of Swedish day-ahead electricity prices for the four price zone
 3. Stores the prices in a small SQLite database. Running it twice never creates duplicates.
 4. Scores two simple baseline forecasts on the stored history.
 5. Tests two models against the baseline by replaying the past one day at a time.
+6. Every morning, on its own: downloads new prices, scores the earlier forecasts, forecasts tomorrow, and publishes both.
 
 ## Run it
 
@@ -24,7 +25,12 @@ python -m elpris backfill --days 730     # download two years (30 to 45 minutes)
 python -m elpris backtest                # score the baselines
 python -m elpris compare --test-days 180 # test the models against the baseline
 python -m elpris fetch                   # download today only
+
+python -m elpris forecast --record-dir local_record   # forecast tomorrow
+python -m elpris score --record-dir local_record      # score earlier forecasts
 ```
+
+The `record/` folder belongs to the daily run on GitHub. When trying the last two commands on your own machine, use `--record-dir local_record` as shown, so your experiments never mix with the public record.
 
 The database is written to `data/prices.db`. That folder is not stored in git, because the pipeline can rebuild it at any time.
 
@@ -48,6 +54,22 @@ How to read this honestly:
 
 An earlier test on only 28 days showed gains of 12% to 18%, but could not prove them in three of the four zones. The longer test was needed to settle it.
 
+## The daily run
+
+A scheduled GitHub Actions job (`.github/workflows/daily.yml`) runs every morning at 05:17 UTC, hours before the next day's real prices are published.
+
+1. It restores the price database from the previous run and downloads whatever is new.
+2. It scores every earlier forecast whose real prices are now known.
+3. It retrains the model on all history and forecasts tomorrow.
+4. It commits the forecast and the scores to `record/`.
+
+What keeps the record honest:
+
+- A forecast is written once. Code refuses to overwrite a day that is already recorded, and a test checks this.
+- The forecast for a day is identical whether or not that day's real prices are already in the database. A test checks this too.
+- The record lives in git, so every change to it has a timestamp and a visible history.
+- If the job fails, GitHub shows a red run and sends an email. A missing day stays missing. It is not filled in afterwards.
+
 ## How it is built
 
 | File | Job |
@@ -59,6 +81,8 @@ An earlier test on only 28 days showed gains of 12% to 18%, but could not prove 
 | `src/elpris/features.py` | Turn prices into model inputs, never using the future |
 | `src/elpris/backtest.py` | Replay the past day by day, training only on earlier days |
 | `src/elpris/evaluate.py` | Score forecasts and say whether a win is proven |
+| `src/elpris/forecast.py` | Make the real forecast for one delivery day |
+| `src/elpris/record.py` | Keep the public record of forecasts and scores |
 | `src/elpris/cli.py` | The commands above |
 | `tests/` | Tests for every file, using made-up prices, so they run offline |
 
@@ -73,6 +97,7 @@ An earlier test on only 28 days showed gains of 12% to 18%, but could not prove 
 - **Everything in UTC.** Sweden changes clocks twice a year, which gives one 23-hour day and one 25-hour day. Storing UTC avoids both problems.
 - **Quarter-hour prices are averaged to hourly.** The source can publish either. Averaging gives the rest of the code one shape to deal with.
 - **Bad data stops at the door.** A day that fails a check is reported and skipped. It is never saved.
+- **Live inputs are built by the same code as test inputs.** One function builds the model inputs for both. A test checks that the numbers for a future hour are the same before and after its price arrives.
 - **Tests never call the real API.** They would be slow and would fail whenever the API is down.
 
 ## What the model does not know yet
@@ -83,8 +108,8 @@ It only sees past prices. It knows nothing about wind, temperature or power cabl
 
 - [x] Step 1: fetch, check, store, baselines, tests, automated test run on every push
 - [x] Step 2: forecasting model, tested day by day against the baselines on 180 days
-- [ ] Step 3: a small web service, Docker, deployment to a cloud platform, daily scheduled run
-- [ ] Step 4: daily self-scoring and a public page showing the live track record, including the bad days
+- [ ] Step 3: daily scheduled run with a public track record (set up), then a web service, Docker and a cloud deployment
+- [ ] Step 4: 30 days of live results, and weather forecasts as model inputs
 
 ## Data
 
