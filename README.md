@@ -2,7 +2,7 @@
 
 A daily forecast of Swedish day-ahead electricity prices for the four price zones (SE1 to SE4), scored against what really happened.
 
-**Status: step 3 of 4, in progress.** The pipeline, the baselines and the model are built and tested. On a 180-day test the model beats the baseline in all four zones. A daily automatic run is set up on GitHub, and its results are published in the [live track record](record/README.md). Cloud deployment is not done yet.
+**Status: step 3 of 4, in progress.** The pipeline, the baselines and the model are built and tested. On a 180-day test the model beats the baseline in all four zones. A daily automatic run publishes its results in the [live track record](record/README.md). A small web service shows the forecasts and the record, and is packaged with Docker.
 
 ## What it does today
 
@@ -12,6 +12,7 @@ A daily forecast of Swedish day-ahead electricity prices for the four price zone
 4. Scores two simple baseline forecasts on the stored history.
 5. Tests two models against the baseline by replaying the past one day at a time.
 6. Every morning, on its own: downloads new prices, scores the earlier forecasts, forecasts tomorrow, and publishes both.
+7. Serves the forecasts and the track record through a small web service.
 
 ## Run it
 
@@ -24,6 +25,7 @@ pytest                                   # run the tests (no internet needed)
 python -m elpris backfill --days 730     # download two years (30 to 45 minutes)
 python -m elpris backtest                # score the baselines
 python -m elpris compare --test-days 180 # test the models against the baseline
+python -m elpris compare --test-days 180 --save record   # same, and save the result for the web page
 python -m elpris fetch                   # download today only
 
 python -m elpris forecast --record-dir local_record   # forecast tomorrow
@@ -70,6 +72,40 @@ What keeps the record honest:
 - The record lives in git, so every change to it has a timestamp and a visible history.
 - If the job fails, GitHub shows a red run and sends an email. A missing day stays missing. It is not filled in afterwards.
 
+## The web service
+
+A FastAPI service with five addresses:
+
+| Address | What it returns |
+| --- | --- |
+| `/` | The home page: tomorrow's forecast as a chart, the last forecast against the real price, and the score so far (add `?zone=SE4` for another price area) |
+| `/forecast?zone=SE3` | The newest forecast for a zone, hour by hour (add `&date=YYYY-MM-DD` for an older one) |
+| `/scores` | Every scored day (add `?zone=SE3` to filter) |
+| `/summary` | Totals per zone, and whether the lead is proven |
+| `/health` | A quick "I am alive" answer for the hosting platform |
+
+Run it on your own machine:
+
+```bash
+uvicorn elpris.api:app --reload
+```
+
+Then open http://localhost:8000. Or run it with Docker:
+
+```bash
+docker build -t elpris-api .
+docker run -p 8080:8080 elpris-api
+```
+
+How it is designed:
+
+- **The home page is written for someone who has never seen the project.** It says "simple guess" and "average miss", not "baseline" and "MAE", and it explains each term.
+- **Every chart can be read three ways:** by eye, by pointing at it or using the arrow keys, and as a table. Colours were checked for colour-blind readers.
+- **It stores nothing.** It reads the two record files that the daily run publishes on GitHub. So it can be restarted, replaced or scaled to zero without losing anything.
+- **It asks GitHub at most once every ten minutes.** If a refresh fails, it keeps serving the last good copy.
+- **The image does not run as root**, and it holds only the web service, not the tests or the data.
+- **Every push builds the image and checks that the container answers.** A broken Dockerfile is caught before it is deployed.
+
 ## How it is built
 
 | File | Job |
@@ -83,6 +119,10 @@ What keeps the record honest:
 | `src/elpris/evaluate.py` | Score forecasts and say whether a win is proven |
 | `src/elpris/forecast.py` | Make the real forecast for one delivery day |
 | `src/elpris/record.py` | Keep the public record of forecasts and scores |
+| `src/elpris/api.py` | The web service |
+| `src/elpris/page.py` | The home page, in plain words |
+| `src/elpris/charts.py` | The charts, drawn as plain SVG and HTML with no chart library |
+| `Dockerfile` | Package the web service as a container image |
 | `src/elpris/cli.py` | The commands above |
 | `tests/` | Tests for every file, using made-up prices, so they run offline |
 
@@ -108,7 +148,7 @@ It only sees past prices. It knows nothing about wind, temperature or power cabl
 
 - [x] Step 1: fetch, check, store, baselines, tests, automated test run on every push
 - [x] Step 2: forecasting model, tested day by day against the baselines on 180 days
-- [ ] Step 3: daily scheduled run with a public track record (set up), then a web service, Docker and a cloud deployment
+- [ ] Step 3: daily scheduled run with a public track record (live), web service and Docker (built), cloud deployment (next)
 - [ ] Step 4: 30 days of live results, and weather forecasts as model inputs
 
 ## Data

@@ -1,9 +1,11 @@
 """The public track record: what was forecast, and how wrong it was.
 
-Two plain CSV files, kept in git so every change is visible:
+Plain CSV files, kept in git so every change is visible:
 
     record/forecasts.csv   one row per zone and hour, written when the forecast is made
     record/scores.csv      one row per zone and day, written once the real prices are known
+    record/actuals.csv     the real prices for every scored hour, so anyone can redo the scoring
+    record/backtest.csv    the test on past days that was run before going live (optional)
 
 A forecast is written once and never changed. Scoring a day twice changes nothing.
 """
@@ -28,9 +30,16 @@ FORECAST_COLUMNS = [
     "made_at_utc",
 ]
 SCORE_COLUMNS = ["delivery_date", "zone", "hours", "mae_model", "mae_baseline", "model_won"]
+ACTUAL_COLUMNS = ["zone", "hour_utc", "sek_per_kwh"]
+BACKTEST_COLUMNS = [
+    "zone", "method", "mae_sek_per_kwh", "gain_pct", "days_won", "days",
+    "gain_low", "gain_high", "verdict", "first_day", "last_day",
+]
 
 FORECASTS_FILE = "forecasts.csv"
 SCORES_FILE = "scores.csv"
+ACTUALS_FILE = "actuals.csv"
+BACKTEST_FILE = "backtest.csv"
 SUMMARY_FILE = "README.md"
 
 
@@ -46,6 +55,26 @@ def read_forecasts(record_dir: Path | str) -> pd.DataFrame:
 
 def read_scores(record_dir: Path | str) -> pd.DataFrame:
     return _read(Path(record_dir) / SCORES_FILE, SCORE_COLUMNS)
+
+
+def read_actuals(record_dir: Path | str) -> pd.DataFrame:
+    path = Path(record_dir) / ACTUALS_FILE
+    return pd.read_csv(path, dtype={"zone": str}) if path.exists() else pd.DataFrame(columns=ACTUAL_COLUMNS)
+
+
+def read_backtest(record_dir: Path | str) -> pd.DataFrame:
+    path = Path(record_dir) / BACKTEST_FILE
+    return pd.read_csv(path, dtype={"zone": str}) if path.exists() else pd.DataFrame(columns=BACKTEST_COLUMNS)
+
+
+def save_backtest(record_dir: Path | str, results: pd.DataFrame, first_day, last_day) -> Path:
+    """Save the result of `compare`, with the test window, so the web page can show it."""
+    record_dir = Path(record_dir)
+    record_dir.mkdir(parents=True, exist_ok=True)
+    out = results.assign(first_day=str(first_day), last_day=str(last_day))[BACKTEST_COLUMNS]
+    path = record_dir / BACKTEST_FILE
+    out.to_csv(path, index=False)
+    return path
 
 
 def add_forecasts(record_dir: Path | str, forecasts: pd.DataFrame, model: str, made_at: datetime | None = None) -> int:
@@ -89,10 +118,11 @@ def score_pending(record_dir: Path | str, prices: pd.DataFrame) -> pd.DataFrame:
         prices[["zone", "hour_utc", "sek_per_kwh"]], on=["zone", "hour_utc"], how="left"
     )
 
-    rows = []
+    rows, real_prices = [], []
     for (day, zone), group in merged.groupby(["delivery_date", "zone"]):
         if (day, zone) in done or group["sek_per_kwh"].isna().any():
             continue  # already scored, or the real prices are not all in yet
+        real_prices.append(group[["zone", "hour_utc", "sek_per_kwh"]])
         mae_model = (group["sek_per_kwh"] - group["forecast_sek_per_kwh"]).abs().mean()
         mae_baseline = (group["sek_per_kwh"] - group["baseline_sek_per_kwh"]).abs().mean()
         rows.append(
@@ -110,7 +140,37 @@ def score_pending(record_dir: Path | str, prices: pd.DataFrame) -> pd.DataFrame:
     if not new.empty:
         combined = pd.concat([scores, new], ignore_index=True).sort_values(["delivery_date", "zone"])
         combined.to_csv(record_dir / SCORES_FILE, index=False)
+
+        fresh = pd.concat(real_prices, ignore_index=True)
+        fresh["hour_utc"] = fresh["hour_utc"].dt.strftime(TIME_FORMAT)
+        fresh["sek_per_kwh"] = fresh["sek_per_kwh"].round(5)
+        actuals = pd.concat([read_actuals(record_dir), fresh], ignore_index=True)
+        actuals = actuals.drop_duplicates(["zone", "hour_utc"]).sort_values(["zone", "hour_utc"])
+        actuals.to_csv(record_dir / ACTUALS_FILE, index=False)
     return new
+
+
+def summarise(scores: pd.DataFrame) -> list[dict]:
+    """Totals per zone: days scored, both errors, how much lower the model's is, and whether that is proven."""
+    rows = []
+    for zone, group in scores.groupby("zone"):
+        model, baseline = float(group["mae_model"].mean()), float(group["mae_baseline"].mean())
+        if len(group) >= 2:
+            proven = verdict(*gain_range(group["mae_baseline"] - group["mae_model"]))
+        else:
+            proven = "not proven"  # one day can never prove anything
+        rows.append(
+            {
+                "zone": zone,
+                "days_scored": int(len(group)),
+                "mae_model": round(model, 4),
+                "mae_baseline": round(baseline, 4),
+                "error_reduced_pct": round(100 * (baseline - model) / baseline, 1) if baseline else 0.0,
+                "days_model_won": int(group["model_won"].sum()),
+                "verdict": proven,
+            }
+        )
+    return rows
 
 
 def write_summary(record_dir: Path | str, now: datetime | None = None) -> Path:
@@ -143,16 +203,10 @@ def write_summary(record_dir: Path | str, now: datetime | None = None) -> Path:
             "| Zone | Days scored | Model miss | Baseline miss | Error reduced by | Days model won | Proven? |",
             "| --- | --- | --- | --- | --- | --- | --- |",
         ]
-        for zone, group in scores.groupby("zone"):
-            model, baseline = group["mae_model"].mean(), group["mae_baseline"].mean()
-            reduced = 100 * (baseline - model) / baseline if baseline else 0.0
-            if len(group) >= 2:
-                proven = verdict(*gain_range(group["mae_baseline"] - group["mae_model"]))
-            else:
-                proven = "not proven"
+        for row in summarise(scores):
             lines.append(
-                f"| {zone} | {len(group)} | {model:.4f} | {baseline:.4f} | {reduced:.1f}% "
-                f"| {int(group['model_won'].sum())} of {len(group)} | {proven} |"
+                f"| {row['zone']} | {row['days_scored']} | {row['mae_model']:.4f} | {row['mae_baseline']:.4f} "
+                f"| {row['error_reduced_pct']:.1f}% | {row['days_model_won']} of {row['days_scored']} | {row['verdict']} |"
             )
         lines += [
             "",

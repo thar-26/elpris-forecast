@@ -1,0 +1,17 @@
+zone,method,mae_sek_per_kwh,gain_pct,days_won,days,gain_low,gain_high,verdict,first_day,last_day
+SE1,same_hour_yesterday,0.2482,0.0,,180,,,reference,2026-04-08,2026-10-04
+SE1,boosting,0.21,15.4,112,180,0.0226,0.0535,beats baseline,2026-04-08,2026-10-04
+SE1,ridge,0.2165,12.8,114,180,0.0145,0.0484,beats baseline,2026-04-08,2026-10-04
+SE1,blend_yesterday_and_week,0.2328,6.2,104,180,-0.0014,0.0323,not proven,2026-04-08,2026-10-04
+SE2,same_hour_yesterday,0.2598,0.0,,180,,,reference,2026-04-08,2026-10-04
+SE2,boosting,0.2249,13.4,115,180,0.0169,0.053,beats baseline,2026-04-08,2026-10-04
+SE2,ridge,0.2297,11.6,114,180,0.012,0.0472,beats baseline,2026-04-08,2026-10-04
+SE2,blend_yesterday_and_week,0.2448,5.8,105,180,-0.0029,0.0319,not proven,2026-04-08,2026-10-04
+SE3,same_hour_yesterday,0.3299,0.0,,180,,,reference,2026-04-08,2026-10-04
+SE3,ridge,0.2817,14.6,121,180,0.0312,0.0651,beats baseline,2026-04-08,2026-10-04
+SE3,boosting,0.2821,14.5,122,180,0.0306,0.0649,beats baseline,2026-04-08,2026-10-04
+SE3,blend_yesterday_and_week,0.3206,2.8,96,180,-0.0077,0.0257,not proven,2026-04-08,2026-10-04
+SE4,same_hour_yesterday,0.4226,0.0,,180,,,reference,2026-04-08,2026-10-04
+SE4,ridge,0.3731,11.7,114,180,0.0266,0.0728,beats baseline,2026-04-08,2026-10-04
+SE4,boosting,0.3773,10.7,105,180,0.0227,0.069,beats baseline,2026-04-08,2026-10-04
+SE4,blend_yesterday_and_week,0.4277,-1.2,80,180,-0.0277,0.017,not proven,2026-04-08,2026-10-04

@@ -8,11 +8,32 @@ jobs:
   test:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.11"
       - name: Install
         run: pip install -e ".[dev]"
       - name: Run tests
         run: pytest -v
+
+  docker:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Build the image
+        run: docker build -t elpris-api .
+      - name: Start the container and check it answers
+        run: |
+          docker run -d --name api -p 8080:8080 elpris-api
+          for attempt in 1 2 3 4 5 6 7 8 9 10; do
+            if curl -fsS http://localhost:8080/health; then
+              echo
+              echo "The container is healthy."
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "The container did not answer."
+          docker logs api
+          exit 1

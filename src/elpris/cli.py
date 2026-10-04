@@ -75,7 +75,7 @@ def run_backtest(db_path) -> int:
     return 0
 
 
-def run_compare(db_path, test_days: int) -> int:
+def run_compare(db_path, test_days: int, save_dir=None) -> int:
     connection = store.connect(db_path)
     prices = store.load_prices(connection)
     connection.close()
@@ -92,6 +92,9 @@ def run_compare(db_path, test_days: int) -> int:
     print(f"Walk-forward test on {test_days} days, {first} to {last}.")
     print("Each day is forecast using only the days before it.\n")
     print(results.astype(object).fillna("").to_string(index=False))
+    if save_dir:
+        path = record.save_backtest(save_dir, results, first, last)
+        print(f"\nSaved to {path}")
     print(
         "\ngain_pct = how much lower the error is than same_hour_yesterday."
         "\ngain_low to gain_high = 95% range for the average daily gain in SEK per kWh."
@@ -149,6 +152,7 @@ def main(argv: list[str] | None = None) -> int:
 
     compare = commands.add_parser("compare", help="test the models against the baseline")
     compare.add_argument("--test-days", type=int, default=28)
+    compare.add_argument("--save", metavar="FOLDER", default=None, help="also save the result as backtest.csv in this folder")
 
     make_forecast = commands.add_parser("forecast", help="forecast one day (default: tomorrow)")
     make_forecast.add_argument("--date", type=date.fromisoformat, default=None)
@@ -171,7 +175,7 @@ def main(argv: list[str] | None = None) -> int:
     if args.command == "score":
         return run_score(args.db, args.record_dir)
     if args.command == "compare":
-        return run_compare(args.db, args.test_days)
+        return run_compare(args.db, args.test_days, save_dir=args.save)
     return run_backtest(args.db)
 
 

@@ -116,3 +116,15 @@ def test_forecast_without_history_fails_with_a_message(tmp_path, capsys):
     code = cli.main(["--db", str(tmp_path / "empty.db"), "forecast", "--record-dir", str(tmp_path / "record")])
     assert code == 1
     assert "Could not forecast" in capsys.readouterr().out
+
+
+def test_compare_can_save_its_result_for_the_web_page(tmp_path, long_prices):
+    from elpris import record
+
+    db_path = tmp_path / "prices.db"
+    _fill_database(db_path, long_prices)
+    assert cli.run_compare(db_path, test_days=7, save_dir=tmp_path / "record") == 0
+    saved = record.read_backtest(tmp_path / "record")
+    assert list(saved.columns) == record.BACKTEST_COLUMNS
+    assert set(saved["method"]) >= {"ridge", "same_hour_yesterday"}
+    assert set(saved["days"]) == {7}

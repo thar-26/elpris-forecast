@@ -1,0 +1,12 @@
+.git
+.github
+data
+record
+local_record
+tests
+__pycache__
+*.pyc
+*.egg-info
+.pytest_cache
+.venv
+.vscode

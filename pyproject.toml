@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "elpris-forecast"
-version = "0.2.0"
+version = "0.3.0"
 description = "Daily forecast of Swedish day-ahead electricity prices, scored against reality."
 readme = "README.md"
 requires-python = ">=3.10"
@@ -17,7 +17,8 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-dev = ["pytest>=8.0"]
+api = ["fastapi>=0.110", "uvicorn>=0.29"]
+dev = ["pytest>=8.0", "fastapi>=0.110", "uvicorn>=0.29", "httpx>=0.27"]
 
 [tool.setuptools.packages.find]
 where = ["src"]
