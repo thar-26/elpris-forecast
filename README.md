@@ -61,7 +61,7 @@ An earlier test on only 28 days showed gains of 12% to 18%, but could not prove 
 
 ## The daily run
 
-A scheduled GitHub Actions job (`.github/workflows/daily.yml`) runs every morning at 05:17 UTC, hours before the next day's real prices are published.
+A scheduled GitHub Actions job (`.github/workflows/daily.yml`) runs every morning at 05:17 UTC, hours before the next day's real prices are published. GitHub sometimes starts scheduled jobs late or skips one, so the job has two backup start times, 06:47 and 08:17 UTC. A forecast is written only once, so the backups change nothing when the first run worked.
 
 1. It restores the price database from the previous run and downloads whatever is new.
 2. It scores every earlier forecast whose real prices are now known.
@@ -72,6 +72,7 @@ What keeps the record honest:
 
 - A forecast is written once. Code refuses to overwrite a day that is already recorded, and a test checks this.
 - The forecast for a day is identical whether or not that day's real prices are already in the database. A test checks this too.
+- A forecast is only recorded before 12:00 Swedish time the day before, about an hour before the real prices come out. After that the code records nothing, whoever starts the run. A test checks this.
 - The record lives in git, so every change to it has a timestamp and a visible history.
 - If the job fails, GitHub shows a red run and sends an email. A missing day stays missing. It is not filled in afterwards.
 

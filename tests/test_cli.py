@@ -96,13 +96,13 @@ def test_forecast_then_score_from_the_command_line(tmp_path, long_prices, capsys
     _fill_database(morning_db, long_prices[long_prices["hour_utc"] < forecast.delivery_hours(day)[0]])
     _fill_database(later_db, long_prices)
 
-    assert cli.main(["--db", str(morning_db), "forecast", "--date", "2026-07-20", "--record-dir", str(record_dir)]) == 0
+    assert cli.main(["--db", str(morning_db), "forecast", "--date", "2026-07-20", "--allow-late", "--record-dir", str(record_dir)]) == 0
     assert "added 48 hourly rows" in capsys.readouterr().out
 
     # the same morning: nothing to score, and forecasting again changes nothing
     assert cli.main(["--db", str(morning_db), "score", "--record-dir", str(record_dir)]) == 0
     assert "Nothing new to score" in capsys.readouterr().out
-    assert cli.main(["--db", str(morning_db), "forecast", "--date", "2026-07-20", "--record-dir", str(record_dir)]) == 0
+    assert cli.main(["--db", str(morning_db), "forecast", "--date", "2026-07-20", "--allow-late", "--record-dir", str(record_dir)]) == 0
     assert "already recorded" in capsys.readouterr().out
 
     # later, once the real prices are in
@@ -113,7 +113,9 @@ def test_forecast_then_score_from_the_command_line(tmp_path, long_prices, capsys
 
 
 def test_forecast_without_history_fails_with_a_message(tmp_path, capsys):
-    code = cli.main(["--db", str(tmp_path / "empty.db"), "forecast", "--record-dir", str(tmp_path / "record")])
+    code = cli.main(
+        ["--db", str(tmp_path / "empty.db"), "forecast", "--allow-late", "--record-dir", str(tmp_path / "record")]
+    )
     assert code == 1
     assert "Could not forecast" in capsys.readouterr().out
 
@@ -135,3 +137,36 @@ def test_site_command_saves_the_pages(tmp_path, capsys):
     assert cli.main(["site", "--record-dir", str(tmp_path / "empty-record"), "--out", str(out)]) == 0
     assert (out / "index.html").exists()
     assert "Saved 5 pages" in capsys.readouterr().out
+
+
+def _sweden(text):
+    from datetime import datetime
+    from zoneinfo import ZoneInfo
+
+    return datetime.fromisoformat(text).replace(tzinfo=ZoneInfo("Europe/Stockholm"))
+
+
+def test_a_forecast_made_after_the_prices_are_public_is_not_recorded(tmp_path, long_prices, monkeypatch, capsys):
+    from elpris import forecast, record
+
+    day = date(2026, 7, 20)
+    db_path, record_dir = tmp_path / "prices.db", tmp_path / "record"
+    _fill_database(db_path, long_prices[long_prices["hour_utc"] < forecast.delivery_hours(day)[0]])
+    command = ["--db", str(db_path), "forecast", "--date", "2026-07-20", "--record-dir", str(record_dir)]
+
+    # 13:10 the day before: the real prices may be out, so nothing is written
+    monkeypatch.setattr(cli, "now_in_sweden", lambda: _sweden("2026-07-19T13:10"))
+    assert cli.main(command) == 0
+    assert "Too late" in capsys.readouterr().out
+    assert record.read_forecasts(record_dir).empty
+
+    # 07:20 the day before: recorded as usual
+    monkeypatch.setattr(cli, "now_in_sweden", lambda: _sweden("2026-07-19T07:20"))
+    assert cli.main(command) == 0
+    assert "added 48 hourly rows" in capsys.readouterr().out
+
+    # a later run the same day says it is already there, and changes nothing
+    monkeypatch.setattr(cli, "now_in_sweden", lambda: _sweden("2026-07-19T13:10"))
+    assert cli.main(command) == 0
+    assert "already recorded" in capsys.readouterr().out
+    assert len(record.read_forecasts(record_dir)) == 48

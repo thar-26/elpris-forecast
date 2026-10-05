@@ -173,8 +173,19 @@ def summarise(scores: pd.DataFrame) -> list[dict]:
     return rows
 
 
+UPDATED_LINE = "Updated automatically. Last update:"
+
+
+def _without_update_time(text: str) -> str:
+    return "\n".join(line for line in text.splitlines() if not line.startswith(UPDATED_LINE))
+
+
 def write_summary(record_dir: Path | str, now: datetime | None = None) -> Path:
-    """Write record/README.md, a page anyone can read on GitHub."""
+    """Write record/README.md, a page anyone can read on GitHub.
+
+    If nothing but the update time would change, the file is left alone,
+    so a run with no news does not create an empty commit.
+    """
     record_dir = Path(record_dir)
     record_dir.mkdir(parents=True, exist_ok=True)
     scores = read_scores(record_dir)
@@ -184,7 +195,7 @@ def write_summary(record_dir: Path | str, now: datetime | None = None) -> Path:
     lines = [
         "# Live track record",
         "",
-        f"Updated automatically. Last update: {now:%Y-%m-%d %H:%M} UTC.",
+        f"{UPDATED_LINE} {now:%Y-%m-%d %H:%M} UTC.",
         "",
         "Every forecast for a day uses only prices up to the end of the day before it.",
         "A forecast is written once and never edited. `made_at_utc` in `forecasts.csv` shows when.",
@@ -229,5 +240,8 @@ def write_summary(record_dir: Path | str, now: datetime | None = None) -> Path:
         lines.append("")
 
     path = record_dir / SUMMARY_FILE
-    path.write_text("\n".join(lines), encoding="utf-8")
+    text = "\n".join(lines)
+    if path.exists() and _without_update_time(path.read_text(encoding="utf-8")) == _without_update_time(text):
+        return path
+    path.write_text(text, encoding="utf-8")
     return path

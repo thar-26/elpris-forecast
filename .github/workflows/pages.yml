@@ -26,6 +26,11 @@ jobs:
       name: github-pages
       url: ${{ steps.deploy.outputs.page_url }}
     steps:
+      # Fails at once, with a clear message, if GitHub Pages is not switched on for this repository
+      # (Settings, Pages, Source: "GitHub Actions").
+      - name: Check that GitHub Pages is switched on
+        uses: actions/configure-pages@v6
+
       - uses: actions/checkout@v5
         with:
           ref: main   # always the newest record, including the commit the daily run just made

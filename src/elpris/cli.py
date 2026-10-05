@@ -23,8 +23,12 @@ from . import backtest, config, evaluate, features, fetch, forecast, page, recor
 RECORD_DIR = "record"
 
 
+def now_in_sweden() -> datetime:
+    return datetime.now(ZoneInfo(features.LOCAL_TIMEZONE))
+
+
 def today_in_sweden() -> date:
-    return datetime.now(ZoneInfo(features.LOCAL_TIMEZONE)).date()
+    return now_in_sweden().date()
 
 
 def fetch_and_save(connection, session, day: date, zone: str, force: bool = False) -> str:
@@ -104,7 +108,17 @@ def run_compare(db_path, test_days: int, save_dir=None) -> int:
     return 0
 
 
-def run_forecast(db_path, record_dir, day: date) -> int:
+def run_forecast(db_path, record_dir, day: date, allow_late: bool = False) -> int:
+    if not allow_late and forecast.too_late(day, now_in_sweden()):
+        if str(day) in set(record.read_forecasts(record_dir)["delivery_date"]):
+            print(f"Forecast for {day} is already recorded. Nothing changed.")
+        else:
+            print(
+                f"Too late to forecast {day}. Its real prices may already be public "
+                f"(they come out around 13:00 Swedish time the day before), so nothing was recorded. "
+                f"For a local test, add --allow-late."
+            )
+        return 0
     connection = store.connect(db_path)
     prices = store.load_prices(connection)
     connection.close()
@@ -170,6 +184,9 @@ def main(argv: list[str] | None = None) -> int:
     make_forecast = commands.add_parser("forecast", help="forecast one day (default: tomorrow)")
     make_forecast.add_argument("--date", type=date.fromisoformat, default=None)
     make_forecast.add_argument("--record-dir", default=RECORD_DIR)
+    make_forecast.add_argument(
+        "--allow-late", action="store_true", help="record it even after the real prices may be public (local tests only)"
+    )
 
     score = commands.add_parser("score", help="score recorded forecasts against real prices")
     score.add_argument("--record-dir", default=RECORD_DIR)
@@ -188,7 +205,7 @@ def main(argv: list[str] | None = None) -> int:
         return 1 if run_fetch([args.date or today_in_sweden()], args.db, force=args.force) else 0
     if args.command == "forecast":
         day = args.date or today_in_sweden() + timedelta(days=1)
-        return run_forecast(args.db, args.record_dir, day)
+        return run_forecast(args.db, args.record_dir, day, allow_late=args.allow_late)
     if args.command == "score":
         return run_score(args.db, args.record_dir)
     if args.command == "site":

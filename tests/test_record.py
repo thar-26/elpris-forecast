@@ -88,3 +88,24 @@ def test_summary_page_shows_totals_once_days_are_scored(tmp_path, long_prices, d
     assert "## Totals since 2026-07-20" in text
     assert "| SE3 | 1 |" in text
     assert "not proven" in text  # one day can never prove anything
+
+
+def test_summary_is_left_alone_when_only_the_time_would_change(tmp_path):
+    from datetime import datetime, timezone
+
+    first = datetime(2026, 10, 5, 5, 17, tzinfo=timezone.utc)
+    later = datetime(2026, 10, 5, 8, 17, tzinfo=timezone.utc)
+    path = record.write_summary(tmp_path, now=first)
+    before = path.read_text(encoding="utf-8")
+    assert "05:17" in before
+
+    record.write_summary(tmp_path, now=later)
+    assert path.read_text(encoding="utf-8") == before
+
+    # once there is news, the file is rewritten with the new time
+    pd.DataFrame(
+        [{"delivery_date": "2026-10-05", "zone": "SE3", "hours": 24, "mae_model": 0.2, "mae_baseline": 0.3, "model_won": 1}]
+    ).to_csv(tmp_path / record.SCORES_FILE, index=False)
+    record.write_summary(tmp_path, now=later)
+    after = path.read_text(encoding="utf-8")
+    assert "08:17" in after and "SE3" in after

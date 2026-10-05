@@ -6,7 +6,8 @@ If prices for the delivery day happen to be stored already, they are ignored.
 
 from __future__ import annotations
 
-from datetime import date
+from datetime import date, datetime, time, timedelta
+from zoneinfo import ZoneInfo
 
 import pandas as pd
 
@@ -14,6 +15,16 @@ from .backtest import MIN_TRAINING_DAYS, make_models
 from .features import FEATURES, LOCAL_TIMEZONE, build_features
 
 MODEL_NAME = "ridge"
+
+# Real prices for a day come out around 12:45 to 13:00 Swedish time the day before.
+# A forecast made after this hour could be suspected of having seen them, so it is not recorded.
+CUTOFF_HOUR = 12
+
+
+def too_late(day: date, now: datetime) -> bool:
+    """True once the real prices for `day` may already be public. `now` must carry a time zone."""
+    cutoff = datetime.combine(day - timedelta(days=1), time(CUTOFF_HOUR), tzinfo=ZoneInfo(LOCAL_TIMEZONE))
+    return now >= cutoff
 
 
 def delivery_hours(day: date) -> pd.DatetimeIndex:

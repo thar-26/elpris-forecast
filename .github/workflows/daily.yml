@@ -1,10 +1,14 @@
 name: daily forecast
 
 # Runs every morning, before the next day's real prices are published around 13:00 Swedish time.
-# It can also be started by hand from the Actions tab.
+# GitHub sometimes starts a scheduled run late, or skips it, so there are three start times.
+# A forecast is written only once, so the second and third run change nothing if the first one worked.
+# After 12:00 Swedish time the forecast step records nothing, whoever starts the run.
 on:
   schedule:
     - cron: "17 5 * * *"   # 05:17 UTC = 07:17 Swedish summer time, 06:17 winter time
+    - cron: "47 6 * * *"   # backup, 1.5 hours later
+    - cron: "17 8 * * *"   # last backup: 10:17 summer time, 09:17 winter time
   workflow_dispatch:
 
 permissions:

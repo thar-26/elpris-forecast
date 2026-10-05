@@ -69,3 +69,21 @@ def test_missing_prices_for_the_day_before_give_a_clear_error(long_prices):
 def test_too_little_history_gives_a_clear_error(long_prices):
     with pytest.raises(ValueError, match="not enough history"):
         forecast.forecast_day(long_prices.iloc[: 24 * 12], date(2026, 6, 13))
+
+
+def test_too_late_starts_at_noon_swedish_time_the_day_before():
+    from datetime import datetime, timezone
+    from zoneinfo import ZoneInfo
+
+    from elpris.forecast import too_late
+
+    sweden = ZoneInfo("Europe/Stockholm")
+    day = date(2026, 10, 6)
+    assert not too_late(day, datetime(2026, 10, 5, 11, 59, tzinfo=sweden))
+    assert too_late(day, datetime(2026, 10, 5, 12, 0, tzinfo=sweden))
+    assert not too_late(day, datetime(2026, 10, 4, 23, 0, tzinfo=sweden))
+    # the same moment given in UTC: 10:30 UTC is 12:30 in Sweden in summer time
+    assert too_late(day, datetime(2026, 10, 5, 10, 30, tzinfo=timezone.utc))
+    assert not too_late(day, datetime(2026, 10, 5, 9, 30, tzinfo=timezone.utc))
+    # in winter time Sweden is one hour ahead of UTC, so 10:30 UTC is still before noon
+    assert not too_late(date(2026, 12, 2), datetime(2026, 12, 1, 10, 30, tzinfo=timezone.utc))

@@ -296,7 +296,7 @@ HOW_IT_WORKS = """
 <li><b>It forecasts the next day</b>, hour by hour, using only prices up to the end of today.</li>
 <li><b>It publishes both.</b> A forecast is written once and never changed afterwards.</li>
 </ol>
-<p>Nobody starts it by hand. If a morning run fails, that day is simply missing from the record.</p>
+<p>It starts on its own. A forecast is only recorded before 12:00 Swedish time, about an hour before the real prices come out. If every morning run fails, that day is simply missing from the record.</p>
 </section>
 """
 
