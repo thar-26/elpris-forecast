@@ -83,3 +83,18 @@ def test_real_prices_are_recorded_when_a_day_is_scored(tmp_path, long_prices):
     assert len(actuals) == 48 and set(actuals["zone"]) == {"SE3", "SE4"}
     record.score_pending(tmp_path, long_prices)
     assert len(record.read_actuals(tmp_path)) == 48          # scoring again adds nothing
+
+
+def test_saved_site_has_one_file_per_area_and_links_between_them(tmp_path, scored):
+    written = page.build_site(scored, tmp_path / "site", now=MORNING_BEFORE)
+    names = sorted(p.name for p in written)
+    assert names == ["index.html", "se1.html", "se2.html", "se3.html", "se4.html"]
+    assert (tmp_path / "site" / ".nojekyll").exists()
+
+    home = (tmp_path / "site" / "index.html").read_text(encoding="utf-8")
+    assert home == (tmp_path / "site" / "se3.html").read_text(encoding="utf-8")   # Stockholm is the front page
+    assert 'href="se4.html"' in home
+    assert "/?zone=" not in home and 'href="/summary"' not in home               # nothing points at the live service
+    assert "Forecast for Monday 20 July: Stockholm (SE3)" in home                # a date, not the word "tomorrow"
+    assert "Page updated 19 July 2026 at 10:00 Swedish time" in home
+    assert "Malmö (SE4)" in (tmp_path / "site" / "se4.html").read_text(encoding="utf-8")

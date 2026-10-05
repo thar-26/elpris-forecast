@@ -2,7 +2,9 @@
 
 A daily forecast of Swedish day-ahead electricity prices for the four price zones (SE1 to SE4), scored against what really happened.
 
-**Status: step 3 of 4, in progress.** The pipeline, the baselines and the model are built and tested. On a 180-day test the model beats the baseline in all four zones. A daily automatic run publishes its results in the [live track record](record/README.md). A small web service shows the forecasts and the record, and is packaged with Docker.
+**Live page: https://thar-26.github.io/elpris-forecast/**
+
+**Status: step 3 of 4 done.** The pipeline, the baselines and the model are built and tested. On a 180-day test the model beats the baseline in all four zones. A daily automatic run publishes its results in the [live track record](record/README.md) and rebuilds the public page. A web service with the same page is packaged with Docker and tested on every push. It is not hosted on a cloud platform yet.
 
 ## What it does today
 
@@ -12,7 +14,8 @@ A daily forecast of Swedish day-ahead electricity prices for the four price zone
 4. Scores two simple baseline forecasts on the stored history.
 5. Tests two models against the baseline by replaying the past one day at a time.
 6. Every morning, on its own: downloads new prices, scores the earlier forecasts, forecasts tomorrow, and publishes both.
-7. Serves the forecasts and the track record through a small web service.
+7. Publishes a readable page with charts on GitHub Pages, rebuilt after every run.
+8. Serves the same page and the raw numbers through a small web service.
 
 ## Run it
 
@@ -71,6 +74,18 @@ What keeps the record honest:
 - The forecast for a day is identical whether or not that day's real prices are already in the database. A test checks this too.
 - The record lives in git, so every change to it has a timestamp and a visible history.
 - If the job fails, GitHub shows a red run and sends an email. A missing day stays missing. It is not filled in afterwards.
+
+## The public page
+
+After every daily run, and after every push, a workflow (`.github/workflows/pages.yml`) builds the page as plain files and publishes it on GitHub Pages. Plain files load at once and cannot go down with a server, which suits data that changes once a day.
+
+Build it on your own machine:
+
+```bash
+python -m elpris site --record-dir record --out site
+```
+
+Then open `site/index.html` in a browser.
 
 ## The web service
 
@@ -148,7 +163,8 @@ It only sees past prices. It knows nothing about wind, temperature or power cabl
 
 - [x] Step 1: fetch, check, store, baselines, tests, automated test run on every push
 - [x] Step 2: forecasting model, tested day by day against the baselines on 180 days
-- [ ] Step 3: daily scheduled run with a public track record (live), web service and Docker (built), cloud deployment (next)
+- [x] Step 3: daily scheduled run, public track record, public page, web service and Docker image
+- [ ] Later: host the Docker image on a cloud platform
 - [ ] Step 4: 30 days of live results, and weather forecasts as model inputs
 
 ## Data

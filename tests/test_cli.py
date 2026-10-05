@@ -128,3 +128,10 @@ def test_compare_can_save_its_result_for_the_web_page(tmp_path, long_prices):
     assert list(saved.columns) == record.BACKTEST_COLUMNS
     assert set(saved["method"]) >= {"ridge", "same_hour_yesterday"}
     assert set(saved["days"]) == {7}
+
+
+def test_site_command_saves_the_pages(tmp_path, capsys):
+    out = tmp_path / "site"
+    assert cli.main(["site", "--record-dir", str(tmp_path / "empty-record"), "--out", str(out)]) == 0
+    assert (out / "index.html").exists()
+    assert "Saved 5 pages" in capsys.readouterr().out

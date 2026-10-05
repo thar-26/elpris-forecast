@@ -6,6 +6,7 @@
     python -m elpris compare               test the models against the baseline, day by day
     python -m elpris forecast              forecast tomorrow and add it to the record
     python -m elpris score                 score recorded forecasts whose real prices are in
+    python -m elpris site                  save the web page as plain files, ready to publish
 """
 
 from __future__ import annotations
@@ -17,7 +18,7 @@ from zoneinfo import ZoneInfo
 
 import requests
 
-from . import backtest, config, evaluate, features, fetch, forecast, record, store
+from . import backtest, config, evaluate, features, fetch, forecast, page, record, store
 
 RECORD_DIR = "record"
 
@@ -135,6 +136,18 @@ def run_score(db_path, record_dir) -> int:
     return 0
 
 
+def run_site(record_dir, out_dir) -> int:
+    data = {
+        "forecasts": record.read_forecasts(record_dir),
+        "scores": record.read_scores(record_dir),
+        "actuals": record.read_actuals(record_dir),
+        "backtest": record.read_backtest(record_dir),
+    }
+    written = page.build_site(data, out_dir)
+    print(f"Saved {len(written)} pages to {out_dir}. Open {out_dir}/index.html in a browser to look at it.")
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="elpris", description="Swedish electricity price forecast")
     parser.add_argument("--db", default=str(config.DB_PATH), help="path to the SQLite database")
@@ -161,6 +174,10 @@ def main(argv: list[str] | None = None) -> int:
     score = commands.add_parser("score", help="score recorded forecasts against real prices")
     score.add_argument("--record-dir", default=RECORD_DIR)
 
+    site = commands.add_parser("site", help="save the web page as plain files")
+    site.add_argument("--record-dir", default=RECORD_DIR)
+    site.add_argument("--out", default="site")
+
     args = parser.parse_args(argv)
 
     if args.command == "backfill":
@@ -174,6 +191,8 @@ def main(argv: list[str] | None = None) -> int:
         return run_forecast(args.db, args.record_dir, day)
     if args.command == "score":
         return run_score(args.db, args.record_dir)
+    if args.command == "site":
+        return run_site(args.record_dir, args.out)
     if args.command == "compare":
         return run_compare(args.db, args.test_days, save_dir=args.save)
     return run_backtest(args.db)

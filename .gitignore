@@ -2,6 +2,8 @@
 data/
 # a scratch record folder for trying commands locally
 local_record/
+# the saved web page is rebuilt by GitHub on every run
+site/
 __pycache__/
 *.pyc
 .pytest_cache/

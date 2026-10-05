@@ -70,7 +70,12 @@ def panel(inner: str) -> str:
 # ---------------------------------------------------------------- sections
 
 
-def areas_nav(forecasts: pd.DataFrame, newest: str | None, zone: str) -> str:
+def zone_link(code: str, static: bool) -> str:
+    """Where the link for a price area points: a query on the live service, a file on the static site."""
+    return f"{code.lower()}.html" if static else f"/?zone={code}"
+
+
+def areas_nav(forecasts: pd.DataFrame, newest: str | None, zone: str, static: bool = False) -> str:
     items = []
     for code in config.ZONES:
         average = ""
@@ -80,7 +85,7 @@ def areas_nav(forecasts: pd.DataFrame, newest: str | None, zone: str) -> str:
                 average = f'<span class="area-price">{ore(rows["forecast_sek_per_kwh"].mean())} {UNIT}</span>'
         current = ' aria-current="page"' if code == zone else ""
         items.append(
-            f'<li><a href="/?zone={code}"{current}><span class="area-name"><b>{code}</b> {e(PLACES[code])}</span>'
+            f'<li><a href="{zone_link(code, static)}"{current}><span class="area-name"><b>{code}</b> {e(PLACES[code])}</span>'
             f"{average}</a></li>"
         )
     note = "<p class=\"areas-note\">Average forecast price per kWh</p>" if newest is not None else ""
@@ -90,7 +95,7 @@ def areas_nav(forecasts: pd.DataFrame, newest: str | None, zone: str) -> str:
     )
 
 
-def forecast_section(forecasts: pd.DataFrame, zone: str, now: datetime) -> str:
+def forecast_section(forecasts: pd.DataFrame, zone: str, now: datetime, static: bool = False) -> str:
     rows = forecasts[forecasts["zone"] == zone]
     if rows.empty:
         return panel(
@@ -124,7 +129,8 @@ def forecast_section(forecasts: pd.DataFrame, zone: str, now: datetime) -> str:
         height=280,
     )
     return panel(
-        f"<h2>{day_word(day, now)}, {nice_date(day)}: {e(PLACES[zone])} ({zone})</h2>"
+        # a saved page is read on other days too, so it never says "tomorrow"
+        f"<h2>{'Forecast for' if static else day_word(day, now) + ','} {nice_date(day)}: {e(PLACES[zone])} ({zone})</h2>"
         f"{facts}{chart}"
         f'<p class="note">Forecast made {made.day} {made:%B} at {made:%H:%M}. Prices are spot prices in öre per kWh '
         "(100 öre = 1 krona). Your bill adds taxes, grid fees and your supplier's margin.</p>"
@@ -392,19 +398,37 @@ footer{margin-top:4rem;padding-top:1.25rem;border-top:1px solid var(--grid);font
 """
 
 
-def render(data: dict, zone: str = DEFAULT_ZONE, now: datetime | None = None) -> str:
-    """Build the whole page. `data` holds the four record tables."""
+def render(data: dict, zone: str = DEFAULT_ZONE, now: datetime | None = None, static: bool = False) -> str:
+    """Build the whole page. `data` holds the four record tables.
+
+    static=True builds the version that is saved as files and published on GitHub Pages:
+    links point to files, and dates are written out instead of saying "tomorrow".
+    """
     now = now or datetime.now().astimezone()
     forecasts, scores = data["forecasts"], data["scores"]
     actuals, backtest = data["actuals"], data["backtest"]
     newest = forecasts["delivery_date"].max() if not forecasts.empty else None
+
+    if static:
+        updated = now.astimezone(ZoneInfo(LOCAL_TIMEZONE))
+        extra = (
+            f"<p>Page updated {updated.day} {updated:%B} {updated.year} at {updated:%H:%M} Swedish time. "
+            'The numbers behind it are in the <a href="https://github.com/thar-26/elpris-forecast/tree/main/record">'
+            "record folder</a>.</p>"
+        )
+    else:
+        extra = (
+            '<p>The same numbers for programs: <a href="/summary">/summary</a>, <a href="/scores">/scores</a>, '
+            f'<a href="/forecast?zone={zone}">/forecast?zone={zone}</a>, and the <a href="/docs">API guide</a>.</p>'
+        )
 
     body = (
         "<header><h1>Tomorrow's electricity price in Sweden</h1>"
         '<p class="lead">Every morning a model forecasts the hourly price for the next day, in each of Sweden\'s '
         "four price areas. When the real prices come in, the forecast is checked against them, and the result is "
         "published here, good or bad.</p></header>"
-        f'<div class="now">{areas_nav(forecasts, newest, zone)}{forecast_section(forecasts, zone, now)}</div>'
+        f'<div class="now">{areas_nav(forecasts, newest, zone, static)}'
+        f"{forecast_section(forecasts, zone, now, static)}</div>"
         f"{check_section(forecasts, scores, actuals, zone)}"
         f"{score_section(scores, zone)}"
         f"{backtest_section(backtest)}"
@@ -412,13 +436,30 @@ def render(data: dict, zone: str = DEFAULT_ZONE, now: datetime | None = None) ->
         "<footer><p>Built by Tharun Kumar Marada. The code, the tests and the full record are on "
         '<a href="https://github.com/thar-26/elpris-forecast">GitHub</a>. '
         'Prices come from <a href="https://www.elprisetjustnu.se/elpris-api">elprisetjustnu.se</a>.</p>'
-        '<p>The same numbers for programs: <a href="/summary">/summary</a>, <a href="/scores">/scores</a>, '
-        f'<a href="/forecast?zone={zone}">/forecast?zone={zone}</a>, and the <a href="/docs">API guide</a>.</p></footer>'
+        f"{extra}</footer>"
     )
     return (
         '<!doctype html><html lang="en"><head><meta charset="utf-8">'
         '<meta name="viewport" content="width=device-width, initial-scale=1">'
         "<title>Tomorrow's electricity price in Sweden</title>"
+        '<meta name="description" content="A daily forecast of Swedish electricity prices, checked against the real prices.">'
         f"<style>{STYLE}</style></head><body><main class=\"wrap\">{body}</main>"
         f"<script>{charts.HOVER_SCRIPT}</script></body></html>"
     )
+
+
+def build_site(data: dict, out_dir, now: datetime | None = None) -> list:
+    """Save the page for every price area as plain files. index.html is the default area."""
+    from pathlib import Path
+
+    out = Path(out_dir)
+    out.mkdir(parents=True, exist_ok=True)
+    written = []
+    for code in config.ZONES:
+        text = render(data, zone=code, now=now, static=True)
+        names = [f"{code.lower()}.html"] + (["index.html"] if code == DEFAULT_ZONE else [])
+        for name in names:
+            (out / name).write_text(text, encoding="utf-8")
+            written.append(out / name)
+    (out / ".nojekyll").write_text("", encoding="utf-8")  # tells GitHub Pages to serve the files as they are
+    return written
