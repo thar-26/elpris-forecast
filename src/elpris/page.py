@@ -12,7 +12,7 @@ from zoneinfo import ZoneInfo
 
 import pandas as pd
 
-from . import charts, config, record
+from . import charts, config, record, schedule
 from .features import LOCAL_TIMEZONE
 
 PLACES = {"SE1": "Luleå", "SE2": "Sundsvall", "SE3": "Stockholm", "SE4": "Malmö"}
@@ -61,6 +61,21 @@ def local_hours(hour_utc: pd.Series) -> pd.DatetimeIndex:
 
 def hour_range(stamp: pd.Timestamp) -> str:
     return f"{stamp:%H:%M} to {(stamp + pd.Timedelta(hours=1)):%H:%M}"
+
+
+def hour_spans(stamps) -> str:
+    """Hours written as time ranges, with neighbours joined: '01:00 to 04:00 and 13:00 to 14:00'."""
+    stamps = sorted(stamps)
+    spans, start, end = [], stamps[0], stamps[0]
+    for stamp in stamps[1:]:
+        if stamp - end == pd.Timedelta(hours=1):
+            end = stamp
+        else:
+            spans.append((start, end))
+            start = end = stamp
+    spans.append((start, end))
+    parts = [f"{a:%H:%M} to {(b + pd.Timedelta(hours=1)):%H:%M}" for a, b in spans]
+    return parts[0] if len(parts) == 1 else ", ".join(parts[:-1]) + " and " + parts[-1]
 
 
 def panel(inner: str) -> str:
@@ -118,6 +133,13 @@ def forecast_section(forecasts: pd.DataFrame, zone: str, now: datetime, static: 
         f"<dd class=\"when\">{hour_range(hours[high])}</dd></div>"
         "</dl>"
     )
+    count = schedule.HOURS_NEEDED
+    if len(prices) >= count:
+        picked = schedule.cheapest_hours(pd.Series(prices), count)
+        facts += (
+            f'<p class="cheap">Cheapest {count} hours to run something: '
+            f"<b>{hour_spans([hours[i] for i in picked])}</b></p>"
+        )
     chart = charts.line_chart(
         [{"name": MODEL, "values": prices}],
         [f"{h:%H}" for h in hours],
@@ -288,6 +310,64 @@ def backtest_section(backtest: pd.DataFrame) -> str:
     )
 
 
+PLAN_WORDS = {
+    schedule.NO_PLANNING: "No planning",
+    schedule.YESTERDAY: "Yesterday's cheapest hours",
+    schedule.FORECAST: "The forecast's cheapest hours",
+    schedule.PERFECT: "Perfect hindsight",
+}
+
+
+def plan_section(plan: pd.DataFrame, zone: str) -> str:
+    """What the forecast is worth when it is used to pick the hours to run something."""
+    mine = plan[plan["zone"] == zone].set_index("plan") if not plan.empty else plan
+    if mine.empty or not set(schedule.PLANS) <= set(mine.index):
+        return ""
+    hours, days = int(mine["hours"].iloc[0]), int(mine["days"].iloc[0])
+    first, last = mine["first_day"].iloc[0], mine["last_day"].iloc[0]
+    paid = {name: float(mine.loc[name, "paid_sek_per_kwh"]) for name in schedule.PLANS}
+    saving = float(mine.loc[schedule.FORECAST, "saving_pct"])
+    verdict = mine.loc[schedule.FORECAST, "verdict"]
+    won, lost = int(mine.loc[schedule.FORECAST, "days_won"]), int(mine.loc[schedule.FORECAST, "days_lost"])
+
+    if verdict == "beats baseline":
+        against = (
+            f"That was also reliably cheaper than picking yesterday's cheapest hours, "
+            f"which cost {ore(paid[schedule.YESTERDAY])} {UNIT}."
+        )
+    elif verdict == "worse":
+        against = (
+            f"But picking yesterday's cheapest hours cost only {ore(paid[schedule.YESTERDAY])} {UNIT}, "
+            "and was reliably cheaper. For this job the simple rule is enough, and the forecast adds nothing."
+        )
+    else:
+        against = (
+            f"Picking yesterday's cheapest hours cost {ore(paid[schedule.YESTERDAY])} {UNIT}. "
+            f"The forecast's hours were cheaper on {won} days, more expensive on {lost}, and the same on "
+            f"{days - won - lost}. That is not enough to rule out luck, so for this job the forecast is "
+            "not proven better than the simple rule."
+        )
+    bars = charts.bars(
+        [{"label": PLAN_WORDS[name], "value": paid[name] * ORE_PER_KRONA, "main": name == schedule.FORECAST}
+         for name in schedule.PLANS],
+        unit=UNIT,
+        description=f"Average price paid per kWh in {PLACES[zone]} for four ways of picking {hours} hours a day",
+    )
+    return (
+        "<section><h2>What is the forecast worth?</h2>"
+        f"<p>A smaller miss only matters if it leads to a better decision. So here is one decision. "
+        f"A home can move {hours} hours of electricity use, such as charging a battery or heating water, "
+        f"to any hours of the day. Which hours should it pick?</p>"
+        f"<p>Replayed over {days} past days in {e(PLACES[zone])}, "
+        f"{nice_date(first, weekday=False)} to {nice_date(last, weekday=False)} {pd.Timestamp(last).year}, "
+        f"and always charged the real price: picking the hours with the forecast cost "
+        f"<b>{ore(paid[schedule.FORECAST])} {UNIT}</b> per kWh, <b>{saving:.0f}% less</b> than not planning at all. "
+        f"{against}</p>{panel(bars)}"
+        '<p class="note">"Perfect hindsight" picks the hours that really were cheapest. Nobody can do that in advance. '
+        "It shows how much room is left. Shorter bars are better.</p></section>"
+    )
+
+
 HOW_IT_WORKS = """
 <section><h2>How it works</h2>
 <ol class="steps">
@@ -369,7 +449,9 @@ svg.plot{display:block;width:100%;height:auto}
 .bar-pair{display:grid;gap:2px;border-left:1px solid var(--axis)}
 .bar-row{display:flex;align-items:center;gap:.5rem}
 .bar{display:block;height:12px;min-width:2px;border-radius:0 4px 4px 0}
-.bar.s1{background:var(--series-1)}.bar.s2{background:var(--series-2)}
+.bar.s1{background:var(--series-1)}.bar.s2{background:var(--series-2)}.bar.quiet{background:var(--axis)}
+.bars.wide-labels li{grid-template-columns:14rem minmax(0,1fr)}
+.cheap{margin:.9rem 0 0;font-size:.95rem;color:var(--ink2)}.cheap b{color:var(--ink)}
 .bar-row:hover .bar{opacity:.8}
 .bar-value{font-size:.8rem;color:var(--ink2);white-space:nowrap;font-variant-numeric:tabular-nums}
 .crosshair{stroke:var(--axis);display:none}.hover-dot{display:none}
@@ -394,12 +476,12 @@ footer{margin-top:4rem;padding-top:1.25rem;border-top:1px solid var(--grid);font
 .areas a{border:1px solid var(--border);border-radius:8px;margin:0;padding:.6rem .75rem}.areas a::before{display:none}
 .areas a[aria-current]{border-color:var(--series-1)}
 .tick{font-size:22px}.x-title{display:none}.long-x .x-alt{display:none}
-.bars li{grid-template-columns:minmax(0,1fr)}.panel{padding:1rem 1rem .9rem}}
+.bars li,.bars.wide-labels li{grid-template-columns:minmax(0,1fr)}.panel{padding:1rem 1rem .9rem}}
 """
 
 
 def render(data: dict, zone: str = DEFAULT_ZONE, now: datetime | None = None, static: bool = False) -> str:
-    """Build the whole page. `data` holds the four record tables.
+    """Build the whole page. `data` holds the record tables.
 
     static=True builds the version that is saved as files and published on GitHub Pages:
     links point to files, and dates are written out instead of saying "tomorrow".
@@ -407,6 +489,7 @@ def render(data: dict, zone: str = DEFAULT_ZONE, now: datetime | None = None, st
     now = now or datetime.now().astimezone()
     forecasts, scores = data["forecasts"], data["scores"]
     actuals, backtest = data["actuals"], data["backtest"]
+    plan = data.get("plan", pd.DataFrame(columns=record.PLAN_COLUMNS))
     newest = forecasts["delivery_date"].max() if not forecasts.empty else None
 
     if static:
@@ -432,6 +515,7 @@ def render(data: dict, zone: str = DEFAULT_ZONE, now: datetime | None = None, st
         f"{check_section(forecasts, scores, actuals, zone)}"
         f"{score_section(scores, zone)}"
         f"{backtest_section(backtest)}"
+        f"{plan_section(plan, zone)}"
         f"{HOW_IT_WORKS}{WORDS}"
         "<footer><p>Built by Tharun Kumar Marada. The code, the tests and the full record are on "
         '<a href="https://github.com/thar-26/elpris-forecast">GitHub</a>. '

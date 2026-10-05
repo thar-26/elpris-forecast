@@ -6,6 +6,7 @@ Plain CSV files, kept in git so every change is visible:
     record/scores.csv      one row per zone and day, written once the real prices are known
     record/actuals.csv     the real prices for every scored hour, so anyone can redo the scoring
     record/backtest.csv    the test on past days that was run before going live (optional)
+    record/plan.csv        what picking the cheapest hours with the forecast would have cost (optional)
 
 A forecast is written once and never changed. Scoring a day twice changes nothing.
 """
@@ -36,10 +37,16 @@ BACKTEST_COLUMNS = [
     "gain_low", "gain_high", "verdict", "first_day", "last_day",
 ]
 
+PLAN_COLUMNS = [
+    "zone", "plan", "paid_sek_per_kwh", "saving_pct", "days_won", "days_lost", "days",
+    "gain_low", "gain_high", "verdict", "hours", "first_day", "last_day",
+]
+
 FORECASTS_FILE = "forecasts.csv"
 SCORES_FILE = "scores.csv"
 ACTUALS_FILE = "actuals.csv"
 BACKTEST_FILE = "backtest.csv"
+PLAN_FILE = "plan.csv"
 SUMMARY_FILE = "README.md"
 
 
@@ -73,6 +80,23 @@ def save_backtest(record_dir: Path | str, results: pd.DataFrame, first_day, last
     record_dir.mkdir(parents=True, exist_ok=True)
     out = results.assign(first_day=str(first_day), last_day=str(last_day))[BACKTEST_COLUMNS]
     path = record_dir / BACKTEST_FILE
+    out.to_csv(path, index=False)
+    return path
+
+
+def read_plan(record_dir: Path | str) -> pd.DataFrame:
+    path = Path(record_dir) / PLAN_FILE
+    if not path.exists():
+        return pd.DataFrame(columns=PLAN_COLUMNS)
+    return pd.read_csv(path, dtype={"zone": str}, keep_default_na=False, na_values=[""]).fillna({"verdict": ""})
+
+
+def save_plan(record_dir: Path | str, results: pd.DataFrame, hours: int, first_day, last_day) -> Path:
+    """Save the result of `plan`, with the number of hours and the test window, so the web page can show it."""
+    record_dir = Path(record_dir)
+    record_dir.mkdir(parents=True, exist_ok=True)
+    out = results.assign(hours=hours, first_day=str(first_day), last_day=str(last_day))[PLAN_COLUMNS]
+    path = record_dir / PLAN_FILE
     out.to_csv(path, index=False)
     return path
 

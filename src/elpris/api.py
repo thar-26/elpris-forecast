@@ -1,6 +1,6 @@
 """A small web service that shows the forecasts and the track record.
 
-It keeps no data of its own. It reads the two record files that the daily run
+It keeps no data of its own. It reads the record files that the daily run
 publishes, so the service can be restarted or replaced at any time without losing anything.
 
     uvicorn elpris.api:app --reload      run it on your own machine
@@ -24,7 +24,7 @@ from . import __version__, config, page, record
 DEFAULT_RECORD_URL = "https://raw.githubusercontent.com/thar-26/elpris-forecast/main/record"
 CACHE_SECONDS = 600  # ask GitHub at most once every ten minutes
 
-Record = dict  # {"forecasts", "scores", "actuals", "backtest"}: four tables
+Record = dict  # {"forecasts", "scores", "actuals", "backtest", "plan"}: five tables
 Loader = Callable[[], Record]
 
 FILES = {
@@ -32,6 +32,7 @@ FILES = {
     "scores": (record.SCORES_FILE, record.SCORE_COLUMNS),
     "actuals": (record.ACTUALS_FILE, record.ACTUAL_COLUMNS),
     "backtest": (record.BACKTEST_FILE, record.BACKTEST_COLUMNS),
+    "plan": (record.PLAN_FILE, record.PLAN_COLUMNS),
 }
 
 
@@ -41,6 +42,7 @@ def load_from_folder(folder: Path | str) -> Record:
         "scores": record.read_scores(folder),
         "actuals": record.read_actuals(folder),
         "backtest": record.read_backtest(folder),
+        "plan": record.read_plan(folder),
     }
 
 
@@ -53,7 +55,10 @@ def load_from_url(base_url: str) -> Record:
             tables[name] = pd.DataFrame(columns=columns)
             continue
         response.raise_for_status()
-        tables[name] = pd.read_csv(io.StringIO(response.text), dtype={"delivery_date": str, "zone": str})
+        tables[name] = pd.read_csv(
+            io.StringIO(response.text), dtype={"delivery_date": str, "zone": str}, keep_default_na=False, na_values=[""]
+        )
+    tables["plan"] = tables["plan"].fillna({"verdict": ""})
     return tables
 
 

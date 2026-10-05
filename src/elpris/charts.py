@@ -1,9 +1,10 @@
 """Charts drawn as plain SVG on the server. No chart library.
 
-Two forms are enough for this project:
+Three forms are enough for this project:
 
     line_chart    prices or errors over time, up to three series
     paired_bars   two numbers side by side for each price area
+    bars          one number for each of a few named things
 
 Every chart comes with a legend (when there is more than one series), a hover
 readout, and a table of the same numbers, so nothing can only be read by colour.
@@ -209,6 +210,34 @@ def paired_bars(rows: list[dict], names: tuple[str, str], *, unit: str, descript
     return (
         f'<figure class="chart" aria-label="{html.escape(description)}">{legend}'
         f'<ul class="bars">{"".join(items)}</ul>{table}</figure>'
+    )
+
+
+def bars(rows: list[dict], *, unit: str, description: str) -> str:
+    """One horizontal bar per row, for comparing a handful of named things.
+
+    rows: [{"label": "No planning", "value": 62.0, "main": False}, ...]
+    The row marked main is drawn in the series colour, the others in a quiet grey,
+    so the eye lands on the one the text is about. Labels and values are always written out.
+    """
+    if not rows:
+        return ""
+    biggest = max(row["value"] for row in rows) or 1.0
+    items = []
+    for row in rows:
+        share = max(0.004, row["value"] / biggest)
+        text = f"{format_value(row['value'])} {unit}"
+        css = "s1" if row.get("main") else "quiet"
+        label = f"<b>{html.escape(row['label'])}</b>" if row.get("main") else html.escape(row["label"])
+        items.append(
+            f'<li><span class="bar-label">{label}</span><div class="bar-pair"><div class="bar-row">'
+            f'<span class="bar {css}" style="width:calc((100% - 5rem) * {share:.4f})"></span>'
+            f'<span class="bar-value">{html.escape(text)}</span></div></div></li>'
+        )
+    table = _table(["", unit], [[row["label"], format_value(row["value"])] for row in rows])
+    return (
+        f'<figure class="chart" aria-label="{html.escape(description)}">'
+        f'<ul class="bars wide-labels">{"".join(items)}</ul>{table}</figure>'
     )
 
 

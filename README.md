@@ -13,9 +13,10 @@ A daily forecast of Swedish day-ahead electricity prices for the four price zone
 3. Stores the prices in a small SQLite database. Running it twice never creates duplicates.
 4. Scores two simple baseline forecasts on the stored history.
 5. Tests two models against the baseline by replaying the past one day at a time.
-6. Every morning, on its own: downloads new prices, scores the earlier forecasts, forecasts tomorrow, and publishes both.
-7. Publishes a readable page with charts on GitHub Pages, rebuilt after every run.
-8. Serves the same page and the raw numbers through a small web service.
+6. Tests what the forecast is worth for a real decision: picking the cheapest hours to run something.
+7. Every morning, on its own: downloads new prices, scores the earlier forecasts, forecasts tomorrow, and publishes both.
+8. Publishes a readable page with charts on GitHub Pages, rebuilt after every run.
+9. Serves the same page and the raw numbers through a small web service.
 
 ## Run it
 
@@ -29,6 +30,8 @@ python -m elpris backfill --days 730     # download two years (30 to 45 minutes)
 python -m elpris backtest                # score the baselines
 python -m elpris compare --test-days 180 # test the models against the baseline
 python -m elpris compare --test-days 180 --save record   # same, and save the result for the web page
+python -m elpris plan --test-days 180    # test what the forecast is worth for picking cheap hours
+python -m elpris plan --test-days 180 --save record      # same, and save the result for the web page
 python -m elpris fetch                   # download today only
 
 python -m elpris forecast --record-dir local_record   # forecast tomorrow
@@ -58,6 +61,21 @@ How to read this honestly:
 - A plain 50/50 mix of yesterday's price and last week's average was not proven better than the baseline. So the model is doing more than just smoothing.
 
 An earlier test on only 28 days showed gains of 12% to 18%, but could not prove them in three of the four zones. The longer test was needed to settle it.
+
+## What the forecast is worth
+
+A lower error is not the goal. A better decision is. So the forecast is also tested on one decision that a home battery, a water heater or a heat pump has to make every day: which hours to run.
+
+The test (`python -m elpris plan`) replays the same past days as above. Each day, a home must place 4 hours of electricity use. Four ways of picking the hours are compared, and each one is charged the real price of the hours it picked:
+
+| Plan | How it picks the 4 hours |
+| --- | --- |
+| No planning | It does not pick. Use is spread over the day and pays the day's average price |
+| Yesterday's cheapest hours | The hours that were cheapest yesterday. Needs no model |
+| The forecast's cheapest hours | The hours the model says will be cheapest |
+| Perfect hindsight | The hours that really were cheapest. Impossible in advance, shown as the limit |
+
+The fair question is not "does planning save money". Any planning does. It is "does the forecast pick better hours than yesterday's prices would". The answer is checked the same way as the model itself, with a 95% range over the test days, and can come out as "not proven". The current result for each price area is on the public page and in `record/plan.csv`.
 
 ## The daily run
 
@@ -134,6 +152,7 @@ How it is designed:
 | `src/elpris/backtest.py` | Replay the past day by day, training only on earlier days |
 | `src/elpris/evaluate.py` | Score forecasts and say whether a win is proven |
 | `src/elpris/forecast.py` | Make the real forecast for one delivery day |
+| `src/elpris/schedule.py` | Pick the cheapest hours from a forecast and measure what that was worth |
 | `src/elpris/record.py` | Keep the public record of forecasts and scores |
 | `src/elpris/api.py` | The web service |
 | `src/elpris/page.py` | The home page, in plain words |
@@ -165,6 +184,7 @@ It only sees past prices. It knows nothing about wind, temperature or power cabl
 - [x] Step 1: fetch, check, store, baselines, tests, automated test run on every push
 - [x] Step 2: forecasting model, tested day by day against the baselines on 180 days
 - [x] Step 3: daily scheduled run, public track record, public page, web service and Docker image
+- [x] Decision test: what the forecast is worth for picking the cheapest hours
 - [ ] Later: host the Docker image on a cloud platform
 - [ ] Step 4: 30 days of live results, and weather forecasts as model inputs
 

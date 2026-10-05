@@ -170,3 +170,25 @@ def test_a_forecast_made_after_the_prices_are_public_is_not_recorded(tmp_path, l
     assert cli.main(command) == 0
     assert "already recorded" in capsys.readouterr().out
     assert len(record.read_forecasts(record_dir)) == 48
+
+
+def test_plan_command_prints_and_saves_what_the_forecast_is_worth(tmp_path, long_prices, capsys):
+    from elpris import record, schedule
+
+    db_path = tmp_path / "prices.db"
+    _fill_database(db_path, long_prices)
+    code = cli.main(["--db", str(db_path), "plan", "--test-days", "7", "--hours", "3", "--save", str(tmp_path / "record")])
+    assert code == 0
+    output = capsys.readouterr().out
+    assert "move 3 hours" in output and "forecast_hours" in output
+
+    saved = record.read_plan(tmp_path / "record")
+    assert list(saved.columns) == record.PLAN_COLUMNS
+    assert set(saved["plan"]) == set(schedule.PLANS)
+    assert set(saved["hours"]) == {3}
+    assert set(saved[saved["plan"] != schedule.FORECAST]["verdict"]) == {""}
+
+
+def test_plan_with_no_data_explains_what_to_do(tmp_path, capsys):
+    assert cli.main(["--db", str(tmp_path / "empty.db"), "plan"]) == 1
+    assert "backfill" in capsys.readouterr().out

@@ -98,3 +98,51 @@ def test_saved_site_has_one_file_per_area_and_links_between_them(tmp_path, score
     assert "Forecast for Monday 20 July: Stockholm (SE3)" in home                # a date, not the word "tomorrow"
     assert "Page updated 19 July 2026 at 10:00 Swedish time" in home
     assert "Malmö (SE4)" in (tmp_path / "site" / "se4.html").read_text(encoding="utf-8")
+
+
+def plan_table(verdict, forecast_paid=0.30):
+    from elpris import schedule
+
+    paid = {schedule.NO_PLANNING: 0.50, schedule.YESTERDAY: 0.34, schedule.FORECAST: forecast_paid, schedule.PERFECT: 0.20}
+    rows = []
+    for zone in ("SE3", "SE4"):
+        for plan, value in paid.items():
+            is_forecast = plan == schedule.FORECAST
+            rows.append(
+                {"zone": zone, "plan": plan, "paid_sek_per_kwh": value, "saving_pct": round(100 * (0.5 - value) / 0.5, 1),
+                 "days_won": 80 if is_forecast else None, "days_lost": 60 if is_forecast else None, "days": 180,
+                 "gain_low": None, "gain_high": None, "verdict": verdict if is_forecast else "",
+                 "hours": 4, "first_day": "2026-04-08", "last_day": "2026-10-04"}
+            )
+    return pd.DataFrame(rows, columns=record.PLAN_COLUMNS)
+
+
+def test_page_without_a_plan_file_has_no_worth_section(scored):
+    assert "What is the forecast worth?" not in page.render(scored, zone="SE3", now=MORNING_BEFORE)
+
+
+def test_worth_section_states_the_saving_and_does_not_oversell(scored):
+    scored["plan"] = plan_table("not proven")
+    text = page.render(scored, zone="SE3", now=MORNING_BEFORE)
+    assert "What is the forecast worth?" in text
+    assert "<b>30 öre</b> per kWh, <b>40% less</b> than not planning" in text
+    assert "cheaper on 80 days, more expensive on 60, and the same on 40" in text
+    assert "not proven better than the simple rule" in text
+
+
+def test_worth_section_says_so_when_the_simple_rule_wins(scored):
+    scored["plan"] = plan_table("worse", forecast_paid=0.38)
+    text = page.render(scored, zone="SE3", now=MORNING_BEFORE)
+    assert "the forecast adds nothing" in text
+
+
+def test_forecast_panel_names_the_cheapest_hours(only_forecast):
+    text = page.render(only_forecast, zone="SE3", now=MORNING_BEFORE)
+    assert "Cheapest 4 hours to run something" in text
+
+
+def test_hours_next_to_each_other_are_joined_into_one_range():
+    stamps = [pd.Timestamp("2026-07-20 01:00"), pd.Timestamp("2026-07-20 02:00"),
+              pd.Timestamp("2026-07-20 03:00"), pd.Timestamp("2026-07-20 13:00")]
+    assert page.hour_spans(stamps) == "01:00 to 04:00 and 13:00 to 14:00"
+    assert page.hour_spans(stamps[:3]) == "01:00 to 04:00"

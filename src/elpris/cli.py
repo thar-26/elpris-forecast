@@ -4,6 +4,7 @@
     python -m elpris fetch                 download today (or --date YYYY-MM-DD)
     python -m elpris backtest              score the baselines on everything stored
     python -m elpris compare               test the models against the baseline, day by day
+    python -m elpris plan                  test what the forecast is worth for picking cheap hours
     python -m elpris forecast              forecast tomorrow and add it to the record
     python -m elpris score                 score recorded forecasts whose real prices are in
     python -m elpris site                  save the web page as plain files, ready to publish
@@ -18,7 +19,7 @@ from zoneinfo import ZoneInfo
 
 import requests
 
-from . import backtest, config, evaluate, features, fetch, forecast, page, record, store
+from . import backtest, config, evaluate, features, fetch, forecast, page, record, schedule, store
 
 RECORD_DIR = "record"
 
@@ -108,6 +109,35 @@ def run_compare(db_path, test_days: int, save_dir=None) -> int:
     return 0
 
 
+def run_plan(db_path, test_days: int, hours: int, save_dir=None) -> int:
+    connection = store.connect(db_path)
+    prices = store.load_prices(connection)
+    connection.close()
+    if prices.empty:
+        print("No prices stored yet. Run: python -m elpris backfill --days 60")
+        return 1
+    try:
+        predictions = backtest.walk_forward(features.build_features(prices), test_days=test_days)
+        daily = schedule.plan_days(predictions, hours=hours)
+    except ValueError as error:
+        print(error)
+        return 1
+    results = schedule.compare_plans(daily)
+    first, last = daily["local_date"].min(), daily["local_date"].max()
+    print(f"A home that can move {hours} hours of electricity use to any hours of the day.")
+    print(f"Replayed on {daily['local_date'].nunique()} days, {first} to {last}. Cost is counted at the real prices.\n")
+    print(results.astype(object).fillna("").to_string(index=False))
+    if save_dir:
+        path = record.save_plan(save_dir, results, hours, first, last)
+        print(f"\nSaved to {path}")
+    print(
+        "\npaid_sek_per_kwh = average real price in the hours each plan chose. Lower is better."
+        "\nsaving_pct = how much less than no planning."
+        "\nThe verdict compares forecast_hours with yesterdays_hours. 'not proven' means the difference could be luck."
+    )
+    return 0
+
+
 def run_forecast(db_path, record_dir, day: date, allow_late: bool = False) -> int:
     if not allow_late and forecast.too_late(day, now_in_sweden()):
         if str(day) in set(record.read_forecasts(record_dir)["delivery_date"]):
@@ -156,6 +186,7 @@ def run_site(record_dir, out_dir) -> int:
         "scores": record.read_scores(record_dir),
         "actuals": record.read_actuals(record_dir),
         "backtest": record.read_backtest(record_dir),
+        "plan": record.read_plan(record_dir),
     }
     written = page.build_site(data, out_dir)
     print(f"Saved {len(written)} pages to {out_dir}. Open {out_dir}/index.html in a browser to look at it.")
@@ -180,6 +211,11 @@ def main(argv: list[str] | None = None) -> int:
     compare = commands.add_parser("compare", help="test the models against the baseline")
     compare.add_argument("--test-days", type=int, default=28)
     compare.add_argument("--save", metavar="FOLDER", default=None, help="also save the result as backtest.csv in this folder")
+
+    plan = commands.add_parser("plan", help="test what the forecast is worth for picking cheap hours")
+    plan.add_argument("--test-days", type=int, default=28)
+    plan.add_argument("--hours", type=int, default=schedule.HOURS_NEEDED, help="hours of use that can be moved")
+    plan.add_argument("--save", metavar="FOLDER", default=None, help="also save the result as plan.csv in this folder")
 
     make_forecast = commands.add_parser("forecast", help="forecast one day (default: tomorrow)")
     make_forecast.add_argument("--date", type=date.fromisoformat, default=None)
@@ -210,6 +246,8 @@ def main(argv: list[str] | None = None) -> int:
         return run_score(args.db, args.record_dir)
     if args.command == "site":
         return run_site(args.record_dir, args.out)
+    if args.command == "plan":
+        return run_plan(args.db, args.test_days, args.hours, save_dir=args.save)
     if args.command == "compare":
         return run_compare(args.db, args.test_days, save_dir=args.save)
     return run_backtest(args.db)
