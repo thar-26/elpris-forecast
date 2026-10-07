@@ -262,8 +262,8 @@ def score_section(scores: pd.DataFrame, zone: str) -> str:
         f"<section>{title}<p>{days} day{'s' if days != 1 else ''} checked since "
         f"{nice_date(scores['delivery_date'].min(), weekday=False)}. The bars show how far off each method was "
         f"on average. Shorter is better.</p>{panel(bars)}{table}"
-        '<p class="note">"Too early to say" means the lead could still be luck. A few good days prove nothing, '
-        f"and it takes weeks to settle.</p>{trend}</section>"
+        '<p class="note">"Too early to say" means the difference could still be luck. A few good or bad days prove '
+        f"nothing, so no verdict is given before {record.MIN_DAYS_FOR_VERDICT} days have been checked.</p>{trend}</section>"
     )
 
 
@@ -387,7 +387,7 @@ WORDS = """
 <dt>Spot price</dt><dd>The price set on the power market for each hour of the next day. It is published around 13:00 the day before.</dd>
 <dt>Simple guess</dt><dd>The assumption that each hour tomorrow will cost what it cost today. It needs no model, so it is the bar a forecast has to clear.</dd>
 <dt>Average miss</dt><dd>How far a forecast was from the real price, averaged over the hours of a day. A miss of 20 öre means it was 20 öre off in a typical hour.</dd>
-<dt>Too early to say</dt><dd>The forecast may be ahead, but not by enough days to rule out luck.</dd>
+<dt>Too early to say</dt><dd>One method may be ahead, but not by enough days to rule out luck.</dd>
 </dl>
 </section>
 """

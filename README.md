@@ -75,7 +75,24 @@ The test (`python -m elpris plan`) replays the same past days as above. Each day
 | The forecast's cheapest hours | The hours the model says will be cheapest |
 | Perfect hindsight | The hours that really were cheapest. Impossible in advance, shown as the limit |
 
-The fair question is not "does planning save money". Any planning does. It is "does the forecast pick better hours than yesterday's prices would". The answer is checked the same way as the model itself, with a 95% range over the test days, and can come out as "not proven". The current result for each price area is on the public page and in `record/plan.csv`.
+The fair question is not "does planning save money". Any planning does. It is "does the forecast pick better hours than yesterday's prices would". The answer is checked the same way as the model itself, with a 95% range over the test days, and can come out as "not proven". The result is in `record/plan.csv` and on the public page.
+
+Result on 180 days (9 April to 5 October 2026). Average price paid, in SEK per kWh:
+
+| Zone | No planning | Yesterday's hours | Forecast's hours | Perfect hindsight | Forecast against yesterday's hours |
+| --- | --- | --- | --- | --- | --- |
+| SE1 | 0.3739 | 0.2903 | 0.2916 | 0.1831 | not proven (cheaper on 50 days, dearer on 49) |
+| SE2 | 0.4000 | 0.3153 | 0.3176 | 0.1956 | not proven (cheaper on 57 days, dearer on 52) |
+| SE3 | 0.7064 | 0.4391 | 0.4191 | 0.3268 | forecast is cheaper (70 days against 28) |
+| SE4 | 0.9518 | 0.5334 | 0.4966 | 0.3852 | forecast is cheaper (66 days against 25) |
+
+How to read this honestly:
+
+- Any planning helps a lot. It cut the price paid by 21% to 22% in the north and by 38% to 48% in the south.
+- In the two southern zones the forecast picked cheaper hours than yesterday's prices did, by about 5% and 7%, and the lead holds up over 180 days.
+- In the two northern zones the forecast added nothing. Yesterday's cheapest hours were just as good.
+- So the forecast earns its place where prices swing the most, and a simple rule is enough where they do not.
+- Perfect hindsight is still 22% to 37% cheaper than the forecast. There is a lot of room left.
 
 ## The daily run
 
@@ -93,6 +110,7 @@ What keeps the record honest:
 - A forecast is only recorded before 12:00 Swedish time the day before, about an hour before the real prices come out. After that the code records nothing, whoever starts the run. A test checks this.
 - The record lives in git, so every change to it has a timestamp and a visible history.
 - If the job fails, GitHub shows a red run and sends an email. A missing day stays missing. It is not filled in afterwards.
+- No verdict, good or bad, is given before 14 days have been scored. A few days cannot tell skill from luck.
 
 ## The public page
 

@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "elpris-forecast"
-version = "0.4.0"
+version = "0.4.1"
 description = "Daily forecast of Swedish day-ahead electricity prices, scored against reality."
 readme = "README.md"
 requires-python = ">=3.10"

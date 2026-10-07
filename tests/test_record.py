@@ -109,3 +109,25 @@ def test_summary_is_left_alone_when_only_the_time_would_change(tmp_path):
     record.write_summary(tmp_path, now=later)
     after = path.read_text(encoding="utf-8")
     assert "08:17" in after and "SE3" in after
+
+
+def scores_for(days, model_miss, baseline_miss):
+    dates = pd.date_range("2026-10-05", periods=days).strftime("%Y-%m-%d")
+    return pd.DataFrame(
+        {"delivery_date": dates, "zone": "SE3", "hours": 24, "mae_model": model_miss,
+         "mae_baseline": baseline_miss, "model_won": int(model_miss < baseline_miss)}
+    )
+
+
+def test_no_verdict_either_way_before_enough_days_are_scored():
+    few = record.MIN_DAYS_FOR_VERDICT - 1
+    # the model loses every single day, and still gets no verdict yet
+    assert record.summarise(scores_for(few, 0.50, 0.30))[0]["verdict"] == "not proven"
+    # the model wins every single day, and still gets no verdict yet
+    assert record.summarise(scores_for(few, 0.30, 0.50))[0]["verdict"] == "not proven"
+
+
+def test_a_verdict_is_given_once_enough_days_are_scored():
+    enough = record.MIN_DAYS_FOR_VERDICT
+    assert record.summarise(scores_for(enough, 0.50, 0.30))[0]["verdict"] == "worse"
+    assert record.summarise(scores_for(enough, 0.30, 0.50))[0]["verdict"] == "beats baseline"

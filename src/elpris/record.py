@@ -42,6 +42,10 @@ PLAN_COLUMNS = [
     "gain_low", "gain_high", "verdict", "hours", "first_day", "last_day",
 ]
 
+# No verdict, good or bad, is given before this many days have been scored.
+# With only a few days, resampling them cannot tell skill from luck.
+MIN_DAYS_FOR_VERDICT = 14
+
 FORECASTS_FILE = "forecasts.csv"
 SCORES_FILE = "scores.csv"
 ACTUALS_FILE = "actuals.csv"
@@ -179,10 +183,10 @@ def summarise(scores: pd.DataFrame) -> list[dict]:
     rows = []
     for zone, group in scores.groupby("zone"):
         model, baseline = float(group["mae_model"].mean()), float(group["mae_baseline"].mean())
-        if len(group) >= 2:
+        if len(group) >= MIN_DAYS_FOR_VERDICT:
             proven = verdict(*gain_range(group["mae_baseline"] - group["mae_model"]))
         else:
-            proven = "not proven"  # one day can never prove anything
+            proven = "not proven"  # a handful of days can never prove anything, in either direction
         rows.append(
             {
                 "zone": zone,
@@ -245,7 +249,7 @@ def write_summary(record_dir: Path | str, now: datetime | None = None) -> Path:
             )
         lines += [
             "",
-            '"Not proven" means the lead could still be luck. It takes weeks of days to settle.',
+            f'"Not proven" means the difference could still be luck. No verdict is given before {MIN_DAYS_FOR_VERDICT} days are scored.',
             "",
             "## Last 14 days",
             "",
