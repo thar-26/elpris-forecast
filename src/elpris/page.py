@@ -371,7 +371,7 @@ def plan_section(plan: pd.DataFrame, zone: str) -> str:
 HOW_IT_WORKS = """
 <section><h2>How it works</h2>
 <ol class="steps">
-<li><b>Every morning</b>, at about 07:20 Swedish time, it downloads the newest prices.</li>
+<li><b>Every morning</b>, before 12:00 Swedish time, it downloads the newest prices.</li>
 <li><b>It checks itself.</b> Any earlier forecast whose real prices are now known is compared with them, and the result is saved.</li>
 <li><b>It forecasts the next day</b>, hour by hour, using only prices up to the end of today.</li>
 <li><b>It publishes both.</b> A forecast is written once and never changed afterwards.</li>

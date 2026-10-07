@@ -1,14 +1,17 @@
 name: daily forecast
 
-# Runs every morning, before the next day's real prices are published around 13:00 Swedish time.
-# GitHub sometimes starts a scheduled run late, or skips it, so there are three start times.
+# Must run between midnight and 12:00 Swedish time: after the day has started, and before the
+# next day's real prices are published around 13:00. After 12:00 the forecast step records nothing.
+#
+# GitHub starts scheduled runs late. On this repository the first four started 6 hours 45 minutes
+# to 7 hours after the time asked for. So the times below are set just after midnight Swedish time.
+# A run that starts on time and a run that starts 7 hours late both land inside the window.
 # A forecast is written only once, so the second and third run change nothing if the first one worked.
-# After 12:00 Swedish time the forecast step records nothing, whoever starts the run.
 on:
   schedule:
-    - cron: "17 5 * * *"   # 05:17 UTC = 07:17 Swedish summer time, 06:17 winter time
-    - cron: "47 6 * * *"   # backup, 1.5 hours later
-    - cron: "17 8 * * *"   # last backup: 10:17 summer time, 09:17 winter time
+    - cron: "17 23 * * *"   # 23:17 UTC = 01:17 Swedish summer time, 00:17 winter time
+    - cron: "47 0 * * *"    # backup, 1.5 hours later
+    - cron: "17 2 * * *"    # last backup: still inside the window if it starts up to 7.5 hours late
   workflow_dispatch:
 
 permissions:

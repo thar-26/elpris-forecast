@@ -96,7 +96,7 @@ How to read this honestly:
 
 ## The daily run
 
-A scheduled GitHub Actions job (`.github/workflows/daily.yml`) runs every morning at 05:17 UTC, hours before the next day's real prices are published. GitHub sometimes starts scheduled jobs late or skips one, so the job has two backup start times, 06:47 and 08:17 UTC. A forecast is written only once, so the backups change nothing when the first run worked.
+A scheduled GitHub Actions job (`.github/workflows/daily.yml`) runs every day between midnight and 12:00 Swedish time, before the next day's real prices are published around 13:00. GitHub starts scheduled jobs late: on this repository the first four started about 7 hours after the time asked for, which at first pushed them past the 12:00 limit. So the job now asks for 23:17 UTC, just after midnight in Sweden, with two backup times. A run that starts on time and a run that starts 7 hours late both land inside the window. A forecast is written only once, so the backups change nothing when the first run worked.
 
 1. It restores the price database from the previous run and downloads whatever is new.
 2. It scores every earlier forecast whose real prices are now known.
