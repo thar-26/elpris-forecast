@@ -1,6 +1,6 @@
 # Live track record
 
-Updated automatically. Last update: 2026-10-16 01:25 UTC.
+Updated automatically. Last update: 2026-10-17 01:20 UTC.
 
 Every forecast for a day uses only prices up to the end of the day before it.
 A forecast is written once and never edited. `made_at_utc` in `forecasts.csv` shows when.
@@ -11,10 +11,10 @@ The baseline is the price at the same hour the day before.
 
 | Zone | Days scored | Model miss | Baseline miss | Error reduced by | Days model won | Proven? |
 | --- | --- | --- | --- | --- | --- | --- |
-| SE1 | 11 | 0.2539 | 0.2827 | 10.2% | 5 of 11 | not proven |
-| SE2 | 11 | 0.3037 | 0.3729 | 18.6% | 6 of 11 | not proven |
-| SE3 | 11 | 0.5226 | 0.5901 | 11.4% | 5 of 11 | not proven |
-| SE4 | 11 | 0.7000 | 0.7112 | 1.6% | 6 of 11 | not proven |
+| SE1 | 12 | 0.2387 | 0.2666 | 10.5% | 6 of 12 | not proven |
+| SE2 | 12 | 0.2835 | 0.3480 | 18.5% | 7 of 12 | not proven |
+| SE3 | 12 | 0.5055 | 0.5837 | 13.4% | 6 of 12 | not proven |
+| SE4 | 12 | 0.6730 | 0.7087 | 5.0% | 7 of 12 | not proven |
 
 "Not proven" means the difference could still be luck. No verdict is given before 14 days are scored.
 
@@ -22,6 +22,10 @@ The baseline is the price at the same hour the day before.
 
 | Date | Zone | Model miss | Baseline miss | Winner |
 | --- | --- | --- | --- | --- |
+| 2026-10-17 | SE1 | 0.0713 | 0.0891 | model |
+| 2026-10-17 | SE2 | 0.0613 | 0.0737 | model |
+| 2026-10-17 | SE3 | 0.3174 | 0.5137 | model |
+| 2026-10-17 | SE4 | 0.3758 | 0.6818 | model |
 | 2026-10-16 | SE1 | 0.1644 | 0.2054 | model |
 | 2026-10-16 | SE2 | 0.1192 | 0.2618 | model |
 | 2026-10-16 | SE3 | 0.3071 | 0.4135 | model |
