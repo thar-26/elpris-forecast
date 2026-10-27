@@ -1,6 +1,6 @@
 # Live track record
 
-Updated automatically. Last update: 2026-10-26 01:15 UTC.
+Updated automatically. Last update: 2026-10-27 02:07 UTC.
 
 Every forecast for a day uses only prices up to the end of the day before it.
 A forecast is written once and never edited. `made_at_utc` in `forecasts.csv` shows when.
@@ -11,10 +11,10 @@ The baseline is the price at the same hour the day before.
 
 | Zone | Days scored | Model miss | Baseline miss | Error reduced by | Days model won | Proven? |
 | --- | --- | --- | --- | --- | --- | --- |
-| SE1 | 20 | 0.2158 | 0.2409 | 10.4% | 11 of 20 | not proven |
-| SE2 | 20 | 0.2506 | 0.2941 | 14.8% | 11 of 20 | not proven |
-| SE3 | 20 | 0.4427 | 0.5129 | 13.7% | 11 of 20 | beats baseline |
-| SE4 | 20 | 0.6091 | 0.6930 | 12.1% | 13 of 20 | beats baseline |
+| SE1 | 21 | 0.2116 | 0.2313 | 8.5% | 11 of 21 | not proven |
+| SE2 | 21 | 0.2472 | 0.2842 | 13.0% | 11 of 21 | not proven |
+| SE3 | 21 | 0.4411 | 0.4968 | 11.2% | 11 of 21 | not proven |
+| SE4 | 21 | 0.5976 | 0.6718 | 11.1% | 13 of 21 | not proven |
 
 "Not proven" means the difference could still be luck. No verdict is given before 14 days are scored.
 
@@ -22,6 +22,10 @@ The baseline is the price at the same hour the day before.
 
 | Date | Zone | Model miss | Baseline miss | Winner |
 | --- | --- | --- | --- | --- |
+| 2026-10-27 | SE1 | 0.1278 | 0.0384 | baseline |
+| 2026-10-27 | SE2 | 0.1784 | 0.0859 | baseline |
+| 2026-10-27 | SE3 | 0.4093 | 0.1763 | baseline |
+| 2026-10-27 | SE4 | 0.3662 | 0.2480 | baseline |
 | 2026-10-26 | SE1 | 0.1536 | 0.0313 | baseline |
 | 2026-10-26 | SE2 | 0.0953 | 0.1125 | model |
 | 2026-10-26 | SE3 | 0.4001 | 0.0970 | baseline |
@@ -74,7 +78,3 @@ The baseline is the price at the same hour the day before.
 | 2026-10-13 | SE2 | 0.3931 | 0.7710 | model |
 | 2026-10-13 | SE3 | 0.6539 | 0.6417 | baseline |
 | 2026-10-13 | SE4 | 0.6366 | 0.5919 | baseline |
-| 2026-10-12 | SE1 | 0.5008 | 0.4906 | baseline |
-| 2026-10-12 | SE2 | 0.7310 | 0.7057 | baseline |
-| 2026-10-12 | SE3 | 0.7980 | 0.7175 | baseline |
-| 2026-10-12 | SE4 | 0.8015 | 0.6554 | baseline |
