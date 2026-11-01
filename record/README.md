@@ -1,6 +1,6 @@
 # Live track record
 
-Updated automatically. Last update: 2026-10-31 02:26 UTC.
+Updated automatically. Last update: 2026-11-01 02:17 UTC.
 
 Every forecast for a day uses only prices up to the end of the day before it.
 A forecast is written once and never edited. `made_at_utc` in `forecasts.csv` shows when.
@@ -11,10 +11,10 @@ The baseline is the price at the same hour the day before.
 
 | Zone | Days scored | Model miss | Baseline miss | Error reduced by | Days model won | Proven? |
 | --- | --- | --- | --- | --- | --- | --- |
-| SE1 | 25 | 0.2087 | 0.2259 | 7.6% | 13 of 25 | not proven |
-| SE2 | 25 | 0.2377 | 0.2731 | 13.0% | 15 of 25 | not proven |
-| SE3 | 25 | 0.4712 | 0.4995 | 5.7% | 12 of 25 | not proven |
-| SE4 | 25 | 0.6904 | 0.6987 | 1.2% | 14 of 25 | not proven |
+| SE1 | 26 | 0.2073 | 0.2280 | 9.1% | 14 of 26 | not proven |
+| SE2 | 26 | 0.2341 | 0.2766 | 15.4% | 16 of 26 | not proven |
+| SE3 | 26 | 0.4747 | 0.4902 | 3.2% | 12 of 26 | not proven |
+| SE4 | 26 | 0.7019 | 0.6753 | -3.9% | 14 of 26 | not proven |
 
 "Not proven" means the difference could still be luck. No verdict is given before 14 days are scored.
 
@@ -22,6 +22,10 @@ The baseline is the price at the same hour the day before.
 
 | Date | Zone | Model miss | Baseline miss | Winner |
 | --- | --- | --- | --- | --- |
+| 2026-11-01 | SE1 | 0.1728 | 0.2789 | model |
+| 2026-11-01 | SE2 | 0.1445 | 0.3637 | model |
+| 2026-11-01 | SE3 | 0.5604 | 0.2581 | baseline |
+| 2026-11-01 | SE4 | 0.9879 | 0.0890 | baseline |
 | 2026-10-31 | SE1 | 0.3591 | 0.3571 | baseline |
 | 2026-10-31 | SE2 | 0.4442 | 0.4586 | model |
 | 2026-10-31 | SE3 | 0.7159 | 0.3915 | baseline |
@@ -74,7 +78,3 @@ The baseline is the price at the same hour the day before.
 | 2026-10-18 | SE2 | 0.3722 | 0.3552 | baseline |
 | 2026-10-18 | SE3 | 0.4575 | 0.5330 | model |
 | 2026-10-18 | SE4 | 0.5276 | 0.4875 | baseline |
-| 2026-10-17 | SE1 | 0.0713 | 0.0891 | model |
-| 2026-10-17 | SE2 | 0.0613 | 0.0737 | model |
-| 2026-10-17 | SE3 | 0.3174 | 0.5137 | model |
-| 2026-10-17 | SE4 | 0.3758 | 0.6818 | model |
