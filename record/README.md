@@ -1,6 +1,6 @@
 # Live track record
 
-Updated automatically. Last update: 2026-11-11 02:50 UTC.
+Updated automatically. Last update: 2026-11-12 03:50 UTC.
 
 Every forecast for a day uses only prices up to the end of the day before it.
 A forecast is written once and never edited. `made_at_utc` in `forecasts.csv` shows when.
@@ -11,10 +11,10 @@ The baseline is the price at the same hour the day before.
 
 | Zone | Days scored | Model miss | Baseline miss | Error reduced by | Days model won | Proven? |
 | --- | --- | --- | --- | --- | --- | --- |
-| SE1 | 36 | 0.2151 | 0.2291 | 6.1% | 20 of 36 | not proven |
-| SE2 | 36 | 0.2523 | 0.2740 | 7.9% | 19 of 36 | not proven |
-| SE3 | 36 | 0.5314 | 0.5066 | -4.9% | 14 of 36 | not proven |
-| SE4 | 36 | 0.6993 | 0.6394 | -9.4% | 16 of 36 | not proven |
+| SE1 | 37 | 0.2241 | 0.2551 | 12.2% | 21 of 37 | not proven |
+| SE2 | 37 | 0.2616 | 0.3051 | 14.3% | 20 of 37 | not proven |
+| SE3 | 37 | 0.5426 | 0.5361 | -1.2% | 15 of 37 | not proven |
+| SE4 | 37 | 0.7058 | 0.6583 | -7.2% | 17 of 37 | not proven |
 
 "Not proven" means the difference could still be luck. No verdict is given before 14 days are scored.
 
@@ -22,6 +22,10 @@ The baseline is the price at the same hour the day before.
 
 | Date | Zone | Model miss | Baseline miss | Winner |
 | --- | --- | --- | --- | --- |
+| 2026-11-12 | SE1 | 0.5454 | 1.1909 | model |
+| 2026-11-12 | SE2 | 0.5963 | 1.4226 | model |
+| 2026-11-12 | SE3 | 0.9448 | 1.5977 | model |
+| 2026-11-12 | SE4 | 0.9420 | 1.3365 | model |
 | 2026-11-11 | SE1 | 1.0736 | 1.0048 | baseline |
 | 2026-11-11 | SE2 | 1.3248 | 1.2094 | baseline |
 | 2026-11-11 | SE3 | 0.7622 | 0.4148 | baseline |
@@ -74,7 +78,3 @@ The baseline is the price at the same hour the day before.
 | 2026-10-30 | SE2 | 0.1972 | 0.2260 | model |
 | 2026-10-30 | SE3 | 0.7013 | 0.4150 | baseline |
 | 2026-10-30 | SE4 | 0.5435 | 0.5308 | baseline |
-| 2026-10-29 | SE1 | 0.0498 | 0.0742 | model |
-| 2026-10-29 | SE2 | 0.0416 | 0.0734 | model |
-| 2026-10-29 | SE3 | 0.4909 | 0.3813 | baseline |
-| 2026-10-29 | SE4 | 1.5348 | 0.8770 | baseline |
