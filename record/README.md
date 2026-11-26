@@ -1,6 +1,6 @@
 # Live track record
 
-Updated automatically. Last update: 2026-11-25 05:27 UTC.
+Updated automatically. Last update: 2026-11-26 05:08 UTC.
 
 Every forecast for a day uses only prices up to the end of the day before it.
 A forecast is written once and never edited. `made_at_utc` in `forecasts.csv` shows when.
@@ -11,10 +11,10 @@ The baseline is the price at the same hour the day before.
 
 | Zone | Days scored | Model miss | Baseline miss | Error reduced by | Days model won | Proven? |
 | --- | --- | --- | --- | --- | --- | --- |
-| SE1 | 50 | 0.2371 | 0.2765 | 14.2% | 28 of 50 | not proven |
-| SE2 | 50 | 0.2672 | 0.3151 | 15.2% | 26 of 50 | beats baseline |
-| SE3 | 50 | 0.5145 | 0.5390 | 4.5% | 25 of 50 | not proven |
-| SE4 | 50 | 0.6574 | 0.6386 | -2.9% | 24 of 50 | not proven |
+| SE1 | 51 | 0.2757 | 0.3082 | 10.5% | 28 of 51 | not proven |
+| SE2 | 51 | 0.3057 | 0.3462 | 11.7% | 26 of 51 | not proven |
+| SE3 | 51 | 0.5267 | 0.5428 | 3.0% | 25 of 51 | not proven |
+| SE4 | 51 | 0.6581 | 0.6332 | -3.9% | 24 of 51 | not proven |
 
 "Not proven" means the difference could still be luck. No verdict is given before 14 days are scored.
 
@@ -22,6 +22,10 @@ The baseline is the price at the same hour the day before.
 
 | Date | Zone | Model miss | Baseline miss | Winner |
 | --- | --- | --- | --- | --- |
+| 2026-11-26 | SE1 | 2.2070 | 1.8952 | baseline |
+| 2026-11-26 | SE2 | 2.2325 | 1.9018 | baseline |
+| 2026-11-26 | SE3 | 1.1326 | 0.7333 | baseline |
+| 2026-11-26 | SE4 | 0.6942 | 0.3670 | baseline |
 | 2026-11-25 | SE1 | 0.5367 | 0.4727 | baseline |
 | 2026-11-25 | SE2 | 0.5633 | 0.5304 | baseline |
 | 2026-11-25 | SE3 | 0.6364 | 0.5529 | baseline |
@@ -74,7 +78,3 @@ The baseline is the price at the same hour the day before.
 | 2026-11-13 | SE2 | 0.1326 | 0.1190 | baseline |
 | 2026-11-13 | SE3 | 0.3613 | 0.3668 | model |
 | 2026-11-13 | SE4 | 0.7981 | 0.6376 | baseline |
-| 2026-11-12 | SE1 | 0.5454 | 1.1909 | model |
-| 2026-11-12 | SE2 | 0.5963 | 1.4226 | model |
-| 2026-11-12 | SE3 | 0.9448 | 1.5977 | model |
-| 2026-11-12 | SE4 | 0.9420 | 1.3365 | model |
