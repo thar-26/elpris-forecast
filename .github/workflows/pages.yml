@@ -24,7 +24,7 @@ jobs:
     runs-on: ubuntu-latest
     environment:
       name: github-pages
-      url: ${{ steps.deploy.outputs.page_url }}
+      url: ${{ steps.deploy.outputs.page_url || steps.deploy_retry.outputs.page_url }}
     steps:
       # Fails at once, with a clear message, if GitHub Pages is not switched on for this repository
       # (Settings, Pages, Source: "GitHub Actions").
@@ -50,6 +50,20 @@ jobs:
         with:
           path: site
 
+      # GitHub's artifact service sometimes cannot find an artifact uploaded seconds
+      # earlier ("Fetching artifact metadata failed ... re-run the deployment at a later
+      # time"). Seen on about half the runs from 24 Nov 2026. So: try, wait, try once more.
+      # The job fails only if the second attempt fails too.
       - name: Publish
         id: deploy
+        continue-on-error: true
+        uses: actions/deploy-pages@v5
+
+      - name: Wait before retrying the publish
+        if: steps.deploy.outcome == 'failure'
+        run: sleep 30
+
+      - name: Publish (retry)
+        id: deploy_retry
+        if: steps.deploy.outcome == 'failure'
         uses: actions/deploy-pages@v5
